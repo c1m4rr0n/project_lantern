@@ -28,12 +28,18 @@ jobs:
           docker run -d --name exclusignal-ci --tmpfs /data:rw,uid=1000,gid=1000 \
             -e SESSION_SECRET=ci-only-session-secret-at-least-32-characters \
             -e PUBLIC_BASE_URL=https://example.test -e DATA_PROVIDER=sam \
+            -e MARKET_PROVIDER=usaspending \
             -e EXCLUSION_PROVIDER=sam-extract -e SAM_API_KEY=ci-placeholder \
             -e EMAIL_PROVIDER=resend -e RESEND_API_KEY=ci-placeholder -e EMAIL_FROM=qa@example.test \
             -e BILLING_PROVIDER=stripe -e STRIPE_SECRET_KEY=ci-placeholder \
             -e STRIPE_WEBHOOK_SECRET=ci-placeholder -e STRIPE_PRICE_STARTER=price_ci_starter \
             -e STRIPE_PRICE_TEAM=price_ci_scale -e SCHEDULER_ENABLED=true exclusignal-ci
           for attempt in $(seq 1 30); do
+            if [ "$(docker inspect --format '{{.State.Running}}' exclusignal-ci)" != "true" ]; then
+              echo "Container exited before readiness"
+              docker logs exclusignal-ci
+              exit 1
+            fi
             if docker exec exclusignal-ci node -e "fetch('http://localhost:8787/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"; then exit 0; fi
             sleep 1
           done
