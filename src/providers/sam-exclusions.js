@@ -238,6 +238,23 @@ export class SamExclusionsProvider {
 
   meta() { return structuredClone(this.lastMeta); }
 
+  async restoreMetadata() {
+    try {
+      const cached = await this.#readCache();
+      if (!cached) return this.meta();
+      const age = this.now() - new Date(cached.fetchedAt);
+      const stale = !Number.isFinite(age) || age > this.ttlMs;
+      this.lastMeta = {
+        configured:Boolean(this.apiKey), cache:stale?'stale':'hit',
+        fetchedAt:cached.fetchedAt || null, sourceDate:cached.sourceDate || null,
+        sourceFile:cached.sourceFile || null, firmRecords:cached.records.length, stale
+      };
+    } catch {
+      this.lastMeta = {...this.lastMeta,cache:'error',error:'Could not read saved exclusions snapshot'};
+    }
+    return this.meta();
+  }
+
   async #readCache() {
     try {
       const parsed = JSON.parse(await readFile(this.snapshotPath,'utf8'));

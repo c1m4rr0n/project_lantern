@@ -386,6 +386,7 @@ async function handler(req, res) {
 }
 
 if (process.env.NODE_ENV !== 'test') {
+  await exclusionProvider?.restoreMetadata?.();
   const server=http.createServer(handler);
   const scheduler=SCHEDULER_ENABLED ? startOperationalScheduler({
     accountStore,

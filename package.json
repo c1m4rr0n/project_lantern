@@ -1,6 +1,6 @@
 {
   "name": "project-lantern",
-  "version": "1.0.0-rc.15",
+  "version": "1.0.0-rc.16",
   "private": true,
   "type": "module",
   "description": "ExcluSignal: federal vendor exclusion monitoring with auditable evidence and procurement intelligence.",

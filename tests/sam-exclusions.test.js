@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { extractFirstCsvFromZip, parseExclusionsCsv, screenVendorAgainstSnapshot, sourceDateFromFilename, SamExclusionsProvider } from '../src/providers/sam-exclusions.js';
@@ -64,5 +64,20 @@ test('SAM exclusions provider shares a cached daily firm snapshot',async()=>{
     assert.equal(first.sha256,createHash('sha256').update(zip).digest('hex'));
     const screened=provider.screenAgainstSnapshot({legalName:'ACME INC',uei:'ABC123DEF456'},second);
     assert.equal(screened.status,'excluded');assert.equal(screened.source.sourceDate,'2026-09-17');
+  }finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('restart restores cached metadata without contacting SAM and identifies expired snapshots',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'lantern-restart-meta-'));
+  try{
+    await writeFile(join(root,'snapshot.json'),JSON.stringify({version:1,fetchedAt:'2026-09-18T12:00:00Z',sourceDate:'2026-09-18',sourceFile:'SAM.csv',records:[{}]}));
+    let calls=0;
+    const make=now=>new SamExclusionsProvider({root,apiKey:'test-key',fetchImpl:async()=>{calls++;throw new Error('Unexpected network');},now:()=>new Date(now)});
+    const fresh=make('2026-09-18T13:00:00Z');await fresh.restoreMetadata();
+    assert.equal(fresh.meta().sourceDate,'2026-09-18');assert.equal(fresh.meta().firmRecords,1);assert.equal(fresh.meta().stale,false);
+    const old=make('2026-09-22T13:00:00Z');await old.restoreMetadata();
+    assert.equal(old.meta().stale,true);assert.equal(old.meta().cache,'stale');assert.equal(calls,0);
+    await writeFile(join(root,'snapshot.json'),'broken json');await fresh.restoreMetadata();
+    assert.equal(fresh.meta().cache,'error');assert.equal(calls,0);
   }finally{await rm(root,{recursive:true,force:true});}
 });
