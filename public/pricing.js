@@ -1,4 +1,4 @@
-import { setAccountIdentity, bindLogout } from '/ui.js?v=rc13';
+import { setAccountIdentity, bindLogout } from '/ui.js?v=rc14';
 const $=s=>document.querySelector(s);
 let billing=null;let authenticated=false;
 async function jsonOrThrow(response){let payload={};try{payload=await response.json();}catch{}if(!response.ok){const e=new Error(payload.message||payload.error||`Request failed (${response.status})`);e.status=response.status;throw e;}return payload;}

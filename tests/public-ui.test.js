@@ -34,3 +34,41 @@ test('every public HTML page declares the ExcluSignal favicon',async()=>{
     assert.match(await read(file),/\/favicon\.svg/,`${file} is missing the favicon`);
   }
 });
+
+test('workspace navigation identifies the active page accessibly',async()=>{
+  const pages={
+    'vendors.html':'/vendors.html',
+    'app.html':'/app.html',
+    'digest.html':'/digest.html',
+    'onboarding.html':'/onboarding.html',
+    'pricing.html':'/pricing.html'
+  };
+  for(const [file,path] of Object.entries(pages)){
+    const body=await read(file);
+    assert.match(body,/class="workspaceNav"[^>]*aria-label="Workspace navigation"/,`${file} needs a navigation label`);
+    const escaped=path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    assert.match(body,new RegExp(`href="${escaped}"[^>]*class="navLink isActive"[^>]*aria-current="page"`),`${file} needs aria-current on its active link`);
+  }
+});
+
+test('Vendor Watch keeps primary screening actions in context and exposes inline status',async()=>{
+  const html=await read('vendors.html');
+  const script=await read('vendors.js');
+  const header=html.match(/<header[\s\S]*?<\/header>/)?.[0]||'';
+  assert.doesNotMatch(header,/id="screenAll"/,`Screen all should not compete with global navigation`);
+  assert.match(html,/class="vendorPanelTools"[\s\S]*id="screenAll"/,`Screen all should live with the watchlist`);
+  assert.match(html,/id="screenAllStatus"[^>]*aria-live="polite"/,`Screening results need an accessible live region`);
+  assert.match(html,/id="billingBanner" class="keyNotice planUsageStrip"/,`Plan usage should have a dedicated presentation`);
+  assert.match(html,/id="snapshotDate">Not screened yet</,`The initial source state should be explicit`);
+  assert.match(script,/meta\.sourceDate\|\|'Not screened yet'/,`The source fallback should remain explicit after rendering`);
+  assert.doesNotMatch(script,/alert\(`Screened /,`Bulk-screening results should render inline instead of interrupting the user`);
+});
+
+test('responsive workspace styles keep mobile navigation and controls compact',async()=>{
+  const css=await read('styles.css');
+  const html=await read('vendors.html');
+  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/,`Mobile workspace navigation should fit without horizontal scrolling`);
+  assert.ok(html.indexOf('detail vendorPanel')<html.indexOf('detail vendorAdd'),`The watchlist should precede its secondary add form in visual and reading order`);
+  assert.match(css,/\.vendorHero h1\{font-size:clamp\(29px,8\.8vw,36px\)/,`The mobile Vendor Watch headline should use the compact scale`);
+  assert.match(css,/min-height:42px;padding:9px 10px;font-size:16px/,`Mobile fields should be compact without triggering browser zoom`);
+});
