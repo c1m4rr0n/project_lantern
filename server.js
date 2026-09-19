@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { releaseIdentity } from './src/runtime/release.js';
 import { audit, logError } from './src/security/events.js';
+import { vendorCsv, screeningReport, escapeHtml } from './src/services/vendor-export.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +35,7 @@ const OUTBOX_ROOT = join(DATA,'outbox');
 const STORAGE_DRIVER = process.env.STORAGE_DRIVER || 'sqlite';
 const PUBLIC_BASE_URL = String(process.env.PUBLIC_BASE_URL || `http://localhost:${PORT}`).replace(/\/$/,'');
 const PRODUCT_NAME = productName(process.env);
+const SUPPORT_EMAIL = /^[^\s<>"'@]+@[^\s<>"'@]+\.[^\s<>"'@]+$/.test(process.env.SUPPORT_EMAIL||'') ? process.env.SUPPORT_EMAIL : null;
 const VERIFY_TTL_MS = Number(process.env.EMAIL_VERIFY_TTL_MS || 24*60*60*1000);
 const RESET_TTL_MS = Number(process.env.PASSWORD_RESET_TTL_MS || 60*60*1000);
 const SCHEDULER_ENABLED = process.env.SCHEDULER_ENABLED === 'true';
@@ -149,6 +151,7 @@ async function handler(req, res) {
   try {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const session = await sessionFor(req);
+    if(url.pathname==='/api/public-config'&&req.method==='GET')return json(res,200,{supportEmail:SUPPORT_EMAIL});
 
     if (url.pathname === '/api/health') {
       const expiresAt = process.env.SAM_API_KEY_EXPIRES_AT || null;
@@ -278,12 +281,34 @@ async function handler(req, res) {
       const [profile, items, vendors] = await Promise.all([tenant.store.getProfile(), tenant.service.list(), tenant.vendorService.list()]);
       return json(res, 200, buildDigest(profile, items, new Date(), buildVendorDigest(vendors)));
     }
-    if (url.pathname === '/api/vendors' && req.method === 'GET') return json(res,200,await tenant.vendorService.list());
+    if(url.pathname==='/api/vendors/import/preview'&&req.method==='POST') {
+      try {await requireActive();return json(res,200,await tenant.vendorService.previewCsv((await body(req,2*1024*1024)).text));}
+      catch(error){return json(res,error.status||400,{error:'import_failed',message:error.message});}
+    }
+    if(url.pathname==='/api/vendors/import/commit'&&req.method==='POST') {
+      try {const input=await body(req,2*1024*1024);return json(res,201,await tenant.vendorService.importCsv(input,{capacity:n=>billing.assertVendorCapacity(n)}));}
+      catch(error){return json(res,error.status||400,{error:'import_failed',message:error.message});}
+    }
+    if(url.pathname==='/api/vendors/export.csv'&&req.method==='GET') {
+      const csv=vendorCsv(await tenant.vendorService.list({all:true}));
+      res.writeHead(200,{...secureHeaders,'content-type':'text/csv; charset=utf-8','content-disposition':'attachment; filename="exclusignal-vendors.csv"','cache-control':'no-store'});return res.end(csv);
+    }
+    const reportMatch=url.pathname.match(/^\/api\/vendors\/([^/]+)\/report$/);
+    if(reportMatch&&req.method==='GET') {
+      const id=decodeURIComponent(reportMatch[1]),vendor=await tenant.vendorService.get(id);
+      if(!vendor)return json(res,404,{error:'not_found'});
+      const html=screeningReport(vendor,await tenant.vendorService.history(id));await audit(tenant.store,'report.exported',{subjectId:id});
+      res.writeHead(200,{...secureHeaders,'content-type':'text/html; charset=utf-8','cache-control':'no-store','content-security-policy':"default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'"});return res.end(html);
+    }
+    const restoreMatch=url.pathname.match(/^\/api\/vendors\/([^/]+)\/restore$/);
+    if(restoreMatch&&req.method==='POST') {
+      try {await requireActive();const restored=await tenant.vendorService.restore(decodeURIComponent(restoreMatch[1]),{capacity:n=>billing.assertVendorCapacity(n)});return json(res,restored?200:404,restored||{error:'not_found'});}
+      catch(error){return json(res,error.status||400,{error:'restore_failed',message:error.message});}
+    }
+    if (url.pathname === '/api/vendors' && req.method === 'GET') return json(res,200,await tenant.vendorService.list({archived:url.searchParams.get('archived')==='true'}));
     if (url.pathname === '/api/vendors' && req.method === 'POST') {
       try {
-        const current=await tenant.vendorService.list();
-        await billing.assertVendorCapacity(current.length);
-        return json(res,201,await tenant.vendorService.add(await body(req,16384)));
+        return json(res,201,await tenant.vendorService.add(await body(req,16384),{capacity:n=>billing.assertVendorCapacity(n)}));
       } catch(error){
         if(error instanceof BillingGateError)return json(res,error.status,{error:error.code,message:error.message});
         return json(res,400,{error:'invalid_vendor',message:error.message});
@@ -380,7 +405,8 @@ async function handler(req, res) {
     const safe = normalize(requested).replace(/^(\.\.(\/|\\|$))+/, '');
     const path = join(ROOT, 'public', safe);
     if (!path.startsWith(join(ROOT, 'public'))) return json(res, 403, { error: 'forbidden' });
-    const data = await readFile(path);
+    let data = await readFile(path);
+    if(extname(path)==='.html'&&SUPPORT_EMAIL) data=Buffer.from(data.toString().replace('</body>',`<footer class="supportFooter"><a href="mailto:${escapeHtml(SUPPORT_EMAIL)}">Contact support: ${escapeHtml(SUPPORT_EMAIL)}</a><p>For recovery help, contact support. Never send passwords or verification links.</p></footer></body>`));
     res.writeHead(200, { ...secureHeaders, 'content-type': types[extname(path)] || 'application/octet-stream', 'cache-control':'no-store, max-age=0', 'pragma':'no-cache', 'expires':'0', 'content-security-policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" });
     res.end(data);
   } catch (error) {

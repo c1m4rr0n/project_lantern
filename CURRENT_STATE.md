@@ -1,6 +1,8 @@
 # ExcluSignal — current source state
 
-Source: RC17 commercial hardening. `release.json` and `package.json` are authoritative for source version. Production remains RC16; this branch does not deploy.
+Source: RC18 commercial hardening. `release.json` and `package.json` are authoritative for source version. Production remains RC16; this branch does not deploy.
+
+RC18 adds confirmed CSV import (1 MiB / 1,000 rows), duplicate/capacity validation, archival/restoration preserving screening history, CSV and print-ready evidence reports, and optional SUPPORT_EMAIL. Archived vendors do not count as active slots and are never screened; restoration requires capacity. Import never automatically screens.
 
 Tracked source was restored at `03ed304`. RC14/15 improved responsive/accessibility UX and vendor submission. RC16 restores SAM snapshot metadata on process startup.
 
