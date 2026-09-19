@@ -4,9 +4,11 @@
 
 `package.json` and `release.json` must have matching versions; the release identity test is part of `npm run release:gate`. Update current-state docs with each milestone. Runtime commit comes from `GIT_COMMIT_SHA`, falling back to `RAILWAY_GIT_COMMIT_SHA`; no fabricated SHA is reported. Health exposes identity under `operations.release`.
 
-GitHub Actions runs the full gate on Node 22 on Linux and Windows for PRs to main and pushes to main. Linux also builds the Docker image. No npm dependencies/install step are required. Recommend requiring both CI checks and disallowing force pushes to main; configure those rules manually after observing successful runs.
+GitHub Actions runs the full gate on Node 22 on Linux and Windows for PRs to main and pushes to main. Linux also builds the Docker image and checks container readiness. No npm dependencies/install step are required. Main now requires PRs and both exact CI checks, including for admins; force pushes and deletion are blocked. See [Production pipeline](PRODUCTION_PIPELINE.md) for the verified settings and pending Railway watch patterns.
 
-## Future Railway source migration — NOT performed by this branch
+## Historical Railway source migration checklist
+
+The operator completed migration to RC19 source commit `2c09f7df4601048dd602e77e486e85dd27943d5d` on 2026-09-19. Keep this checklist for provenance/recovery; do not rerun it against healthy production.
 
 1. Obtain approval to promote the reviewed branch. Record effective production release and preserve the RC16 bootstrap command, pinned archive URL and checksum.
 2. Produce and verify a SQLite backup; download a separate protected copy before migration. Review schema/data rollback compatibility, especially archived vendors: old RC16 binaries do not understand archival and must not screen migrated data without a compatible restore.

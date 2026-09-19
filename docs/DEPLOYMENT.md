@@ -1,6 +1,6 @@
-# Deployment runbook — prepared source RC19
+# Deployment runbook — GitHub source RC19
 
-Actual last-verified production identity lives in CURRENT_DEPLOYMENT.md (RC16 tarball bootstrap). Source identity lives in release.json and package.json. This branch prepares migration; it does not perform it.
+Production now runs RC19 from GitHub main on Railway; the operator-confirmed commit and tag live in CURRENT_DEPLOYMENT.md. Source identity lives in release.json and package.json. See [Production pipeline](PRODUCTION_PIPELINE.md) for enforced main protection and exact pending watch patterns. Documentation updates alone are not proof of a new effective production deployment.
 
 ## Runtime contract
 
@@ -14,7 +14,7 @@ Startup checks readiness configuration, writable data root, SQLite integrity and
 
 ## Source migration and rollback
 
-Follow the exact checklist in [Commercial operations](COMMERCIAL_OPERATIONS.md): preserve RC16 bootstrap/checksum and verified backup, obtain approval, connect the reviewed source, remove the tarball start override, retain existing volume/domain/configuration, enforce one writer, deploy fresh and verify health release/SHA plus readiness and authenticated flows.
+The source migration has been completed by the operator. The historical checklist in [Commercial operations](COMMERCIAL_OPERATIONS.md) remains for recovery/reference, not an instruction to rerun migration. For later promotions retain the existing volume/domain/configuration, enforce one writer and verify health release/SHA, readiness and authenticated flows.
 
 The gate is `npm run release:gate`; also run `git diff --check`. CI uses Node 22 on Linux/Windows and builds Docker on Linux. Do not claim Docker verification if that job has not run.
 

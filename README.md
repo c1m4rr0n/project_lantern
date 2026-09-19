@@ -4,7 +4,7 @@ Vendor Exclusion Watch is the primary product: monitor vendor/subcontractor iden
 
 ## Current state
 
-Source version is in `release.json`, checked against `package.json` by the release gate. RC17–RC19 prepares commercial hardening on a working branch. Last verified production remains RC16 using the checksum-verified runtime tarball bootstrap. This work does not migrate Railway, activate Stripe Live or enable indexing.
+Source version is in `release.json`, checked against `package.json` by the release gate. Production runs RC19 directly from GitHub main on Railway, operator-confirmed at `2c09f7df4601048dd602e77e486e85dd27943d5d`; see CURRENT_DEPLOYMENT.md. Historical tarballs remain available for provenance. Pipeline hardening does not activate Stripe Live or enable indexing.
 
 RC17: direct-source Docker readiness, release identity, CI, structured operational errors, durable audit and optional S3-compatible backup.
 RC18: confirmed CSV import, non-destructive vendor archive/restore, CSV and print-friendly evidence reports, optional support contact.
@@ -25,7 +25,7 @@ The gate runs syntax checks for all source/UI/script/test JavaScript, the automa
 
 ## CI status
 
-GitHub Actions runs Node 22 on Linux and Windows for pull requests to main and pushes to main, with a Docker build on Linux. Configuration alone is not proof that a hosted run succeeded. Require both CI checks before merging and prohibit force pushes to main after configuring protection with confirmed permissions. This branch does not alter protection rules.
+GitHub Actions runs Node 22 on Linux and Windows for pull requests to main and pushes to main, with Docker build/readiness on Linux. Main requires PRs, an up-to-date branch and both checks (including for admins); force pushes and deletion are blocked. Normal merge commits remain allowed. See [Production pipeline](docs/PRODUCTION_PIPELINE.md) for exact settings and pending deployment watch patterns.
 
 ## Account and plans
 
@@ -56,4 +56,4 @@ SQLite has one writable instance on persistent /data. Keep the in-process schedu
 - [Security](docs/SECURITY.md), [product](docs/PRODUCT.md) and [decisions](DECISIONS.md).
 - [Legal review checklist](docs/legal/LAUNCH_LEGAL_CHECKLIST.md): drafts only, not approved public policies.
 
-Human/external gates remain: review/merge, approved source deployment, backup bucket/restore drill, alert delivery, reviewed business/legal/tax/trademark decisions, real sandbox validation and explicit live-payment/launch approval. Historical reports describe their dated releases, not current production.
+Human/external gates remain: review/merge of future changes, safe watch-pattern activation, backup bucket/restore drill, alert delivery, reviewed business/legal/tax/trademark decisions, real sandbox validation and explicit live-payment/launch approval. Historical reports describe their dated releases, not current production.
