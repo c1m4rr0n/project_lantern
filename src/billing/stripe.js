@@ -50,6 +50,20 @@ export class StripeBillingProvider {
     return Boolean(this.env.STRIPE_SECRET_KEY && this.env.STRIPE_WEBHOOK_SECRET && priceIdForPlan('starter',this.env) && priceIdForPlan('team',this.env));
   }
 
+  async retrieveSubscription(id) {
+    if(!/^sub_[a-zA-Z0-9_]+$/.test(id))throw new Error('invalid_subscription_id');
+    const response=await this.fetchFn(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(id)}`,{headers:{authorization:`Bearer ${this.env.STRIPE_SECRET_KEY}`},signal:AbortSignal.timeout(15000),redirect:'error'});
+    if(!response.ok)throw new Error('Subscription verification unavailable');
+    return response.json();
+  }
+
+  async customerSubscriptions(customerId) {
+    if(!/^cus_[a-zA-Z0-9_]+$/.test(customerId))throw new Error('invalid_customer_id');
+    const response=await this.fetchFn(`https://api.stripe.com/v1/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=100`,{headers:{authorization:`Bearer ${this.env.STRIPE_SECRET_KEY}`},signal:AbortSignal.timeout(15000),redirect:'error'});
+    if(!response.ok)throw new Error('Subscription verification unavailable');
+    const result=await response.json();if(result.has_more)throw new Error('Billing requires manual review before deletion');return result.data;
+  }
+
   async createCheckout({ tenantId, email, planKey, customerId = null, successUrl, cancelUrl }) {
     if (!PAID_PLANS[planKey]) throw new Error('invalid paid plan');
     const priceId=priceIdForPlan(planKey,this.env);

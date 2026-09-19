@@ -236,7 +236,7 @@ export class SamExclusionsProvider {
     this.lastMeta = { configured:Boolean(apiKey), cache:'empty', fetchedAt:null, sourceDate:null, sourceFile:null, firmRecords:null, stale:null };
   }
 
-  meta() { return structuredClone(this.lastMeta); }
+  meta() { return {...structuredClone(this.lastMeta),...(this.lastMeta.error?{error:'snapshot_unavailable'}:{})}; }
 
   async restoreMetadata() {
     try {

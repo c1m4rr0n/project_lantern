@@ -1,98 +1,33 @@
-# Deployment runbook — Project Lantern 1.0 candidate
+# Deployment runbook — prepared source RC19
 
-## Runtime shape
-Run one Node 22 container with one persistent volume mounted at `/data`. SQLite is intentionally the low-cost initial storage target. **Do not scale the web service horizontally while SQLite is the source of truth.** Move to the future Postgres adapter first.
+Actual last-verified production identity lives in CURRENT_DEPLOYMENT.md (RC16 tarball bootstrap). Source identity lives in release.json and package.json. This branch prepares migration; it does not perform it.
 
-The web process includes a persistent, single-flight operational scheduler when `SCHEDULER_ENABLED=true`. This is intentional: the daily ingest, email outbox and SQLite backup all need access to the same local volume during the single-instance phase.
+## Runtime contract
 
-## Required production secrets/config
-- `SESSION_SECRET`: 32+ random characters, generated directly in the host secret manager.
-- `SAM_API_KEY`: inject directly in the host secret manager when `DATA_PROVIDER=sam`.
-- `SAM_API_KEY_EXPIRES_AT`: ISO date only; used for rotation warning, never authentication.
-- `COOKIE_SECURE=true`.
-- `PUBLIC_BASE_URL=https://<production-host>` so account-security links never depend on the request `Host` header.
-- `DATA_ROOT=/data` (or the host's explicit persistent-volume path).
-- `DATA_PROVIDER=sam` for live opportunity discovery.
-- `MARKET_PROVIDER=usaspending` for live award context.
-- `EXCLUSION_PROVIDER=sam-extract` for the official Public V2 active-exclusions watch; it reuses `SAM_API_KEY` and caches the shared daily snapshot under `/data/cache/sam-exclusions`.
-- `EMAIL_PROVIDER=resend`, `RESEND_API_KEY`, and `EMAIL_FROM` for public production because account verification is mandatory.
-- `BILLING_PROVIDER=stripe`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER`, and `STRIPE_PRICE_TEAM` for paid production. Production readiness rejects mock billing.
-- `SCHEDULER_ENABLED=true` for the selected single-instance launch architecture.
-- `TRUST_PROXY=true` only behind a trusted reverse proxy that overwrites forwarded address headers.
+Node 22+, one writable container, persistent /data, SQLite, in-process scheduler. Never intentionally run a second writer or independent cron against this database. Use the Dockerfile with the tracked source; no npm install is needed. npm start remains a supported startup command. Container runs as the node user; verify persistent-volume ownership before promotion.
 
-## In-process schedules
-Recommended initial UTC schedule:
-1. scheduler tick every 60 seconds;
-2. outbox delivery eligibility every 5 minutes;
-3. shared opportunity ingest + one shared exclusions snapshot + per-tenant screening/digest once after 12:00 UTC;
-4. verified SQLite backup once after 13:00 UTC;
-5. failed daily/backup jobs retry only after the configured retry window.
+Required production configuration: NODE_ENV=production, PORT=8787, DATA_ROOT=/data, STORAGE_DRIVER=sqlite, COOKIE_SECURE=true, HTTPS PUBLIC_BASE_URL, strong SESSION_SECRET, SCHEDULER_ENABLED=true, DATA_PROVIDER=sam, EXCLUSION_PROVIDER=sam-extract, MARKET_PROVIDER=usaspending, SAM_API_KEY, EMAIL_PROVIDER=resend, RESEND_API_KEY, EMAIL_FROM, BILLING_PROVIDER=stripe, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER and STRIPE_PRICE_TEAM. Test Stripe credentials can validate lifecycle; do not confuse selecting the stripe adapter with permission to activate Live. TRUST_PROXY is allowed only behind a trusted proxy that overwrites forwarded headers.
 
-State is stored at `/data/ops/scheduler-state.json`. Completed daily/backup dates survive process restarts. Email sends are protected by the durable outbox and provider idempotency key.
+Startup checks readiness configuration, writable data root, SQLite integrity and Railway volume-path consistency before listening. SIGTERM/SIGINT stops the scheduler/listener and closes storage. Existing backup/outbox idempotency survives restart.
 
-Billing webhooks are handled at `/api/billing/webhook`; the signed raw request body is verified before state is mutated.
+## Source migration and rollback
 
-Manual operational commands remain available for incident recovery:
-```bash
-npm run job:daily
-npm run outbox:deliver
-npm run backup
-npm run doctor:sam
-```
+Follow the exact checklist in [Commercial operations](COMMERCIAL_OPERATIONS.md): preserve RC16 bootstrap/checksum and verified backup, obtain approval, connect the reviewed source, remove the tarball start override, retain existing volume/domain/configuration, enforce one writer, deploy fresh and verify health release/SHA plus readiness and authenticated flows.
 
-## Health
-- `/api/health`: liveness and non-secret operational metadata, including scheduler state.
-- `/api/ready`: production readiness. It rejects unsafe/incomplete secrets, HTTPS/cookie configuration, selected provider credentials, live email configuration, live billing configuration, scheduler configuration and an implicit/non-persistent data root.
+The gate is `npm run release:gate`; also run `git diff --check`. CI uses Node 22 on Linux/Windows and builds Docker on Linux. Do not claim Docker verification if that job has not run.
 
-## Release validation
-Before deployment:
-```bash
-npm run check
-npm test
-npm run smoke:auth
-npm run smoke:scheduler
-npm run secret-scan
-```
+Rollback must account for RC18 archived vendors: RC16 does not understand archive state and may resume screening them. Use a compatible binary or an explicitly approved verified pre-migration database restore, considering writes since backup. Never silently discard new data.
 
-After deployment:
-1. `/api/ready` must return HTTP 200.
-2. `/api/health` must report the expected providers, `schedulerEnabled: true`, and a recent `lastTickAt`.
-3. Register/verify a test account using real transactional email.
-4. Complete one Stripe test-mode Checkout, verify the webhook moves the tenant to the purchased plan, open the Customer Portal, and cancel/update the subscription to prove entitlement changes.
-5. Run a real SAM opportunities sync and one exclusions-extract refresh from the host; confirm no key appears in logs/responses and record the exclusion source date/hash.
-6. Confirm a daily digest enters and leaves the outbox once.
-7. Confirm a backup manifest reports `integrity: ok` and a SHA-256.
+## Operations
 
-## Rollback
-1. Stop/replace the new single instance; do not intentionally run two SQLite writers during rollback.
-2. Preserve `/data` before changing binaries.
-3. Redeploy the prior Git commit/container image against the same volume if no incompatible schema migration occurred.
-4. If restore is needed, replace `lantern.sqlite` only with a backup whose manifest reports `integrity: ok` and whose SHA-256 matches the file.
+Default schedule: tick every minute, email eligibility every five minutes, daily work after 12:00 UTC, backup after 13:00 UTC, retry window ten minutes. Persistent state is under /data/ops. Manual daily/outbox/backup/reconciliation commands require coordination with the single writer; stop the application before mutating administrative recovery work, especially around account erasure.
 
-## Provider choice for benchmark
-Railway is the current first-host candidate because its Hobby tier has a low $5 monthly floor and supports volumes mounted to the web service. Render remains viable, but its cron jobs cannot access persistent disks, so it does not remove the need for the same single-process scheduling decision while SQLite remains local.
+Health (/api/health) reports liveness, release and non-secret operational metadata. Readiness (/api/ready) is the deployment/external-monitor endpoint and fails closed on unsafe storage/configuration. Optional offsite failure is separately degraded, not a local-backup failure.
 
-See `docs/RAILWAY.md` and `docs/ADR-008-in-process-operations-scheduler.md`.
+Optional OFFSITE_BACKUP_* configuration, SigV4 path-style compatibility, retry/retention and restore procedure are in COMMERCIAL_OPERATIONS.md. Same-volume backups alone are not disaster recovery. External monitor alert rules are documented there; no provider is provisioned.
 
-## Production startup contract (RC4)
-Lantern now performs a fail-fast startup preflight before binding the HTTP port. A production deployment must not be considered valid merely because the container process exists. It must satisfy the production readiness configuration, write successfully to `DATA_ROOT`, and pass a SQLite quick integrity check.
+## Account and launch controls
 
-On Railway, when `RAILWAY_PROJECT_ID` is present, `RAILWAY_VOLUME_MOUNT_PATH` must resolve to exactly the same directory as `DATA_ROOT`. This prevents the primary database from accidentally landing on ephemeral container storage.
+SUPPORT_EMAIL is optional. Keep PUBLIC_LAUNCH_ENABLED=false and LEGAL_LINKS_APPROVED=false. Do not expose draft legal documents as approved policies. Future launch requires approved HTTPS canonical/legal URLs; see ACCOUNT_LIFECYCLE.md.
 
-During a deploy or restart, Railway sends process termination signals. Lantern stops the in-process scheduler, closes the HTTP listener, closes SQLite and exits `0`; a 10-second deadline forces termination if graceful shutdown stalls.
-
-The repository includes `npm run smoke:lifecycle`, which verifies both failure modes as black-box behavior: unsafe production configuration exits non-zero before readiness, while a valid production-shaped process reaches readiness and exits cleanly on `SIGTERM`.
-
-## Backup boundary
-Lantern's automatic SQLite backups currently live on the same persistent volume as the primary database. They protect against logical corruption and bad application changes, but **they are not independent disaster recovery** if the whole volume is lost. For the first live Railway deployment, enable Railway volume backups in addition to Lantern's internal backups. An external/object-storage export remains a later hardening step if the product grows beyond the initial benchmark stage.
-
-
-## RC8 commercial brand
-
-Set `PRODUCT_NAME=ExcluSignal` in the runtime environment. The internal repository codename remains Project Lantern for benchmark traceability. Public pre-launch pages are intentionally `noindex,nofollow` until the custom-domain launch.
-
-
-## RC9 billing boundary
-Validation plans are intentionally simple: trial = 14 days / 25 vendors, Starter = $39/month / 50 vendors, Team = $99/month / 500 vendors. These are market-validation hypotheses rather than forecasts.
-
-Billing authorization is enforced server-side. An inactive tenant can still authenticate and inspect existing history, but cannot add vendors or screen them. The scheduler also skips inactive tenants before provider work. Stripe secrets remain host-only; Checkout and Customer Portal are hosted by Stripe, and webhook HMAC verification uses the raw body with a bounded timestamp tolerance.
+Deletion recovery runs before serving traffic. A failed in-process deletion enters fail-closed recovery mode; repair storage/outbox issues and restart to finish the pending job. Preserve deletion receipts through backup expiry and reapply them when restoring historical data. No changes to Railway, DNS, Stripe Live or repository visibility are part of RC17–RC19 implementation.

@@ -23,9 +23,12 @@ export async function operationalStatus({ dataRoot }) {
     })()
   ]);
   const latestBackup=backups[0] ? await readJson(join(dataRoot,'backups',backups[0])) : null;
+  const offsite=await readJson(join(dataRoot,'ops','offsite-backup.json'));
+  const safeTask=task=>task ? {lastAttemptAt:task.lastAttemptAt||null,lastSuccessAt:task.lastSuccessAt||null,completedDate:task.completedDate||null,lastError:task.lastError?'operation_failed':null,lastFailureAt:task.lastFailureAt||null,lastFailureCode:task.lastFailureCode?'operation_failed':null,integrity:task.integrity==='ok'?'ok':null,queued:task.queued??null,skipped:task.skipped??null} : null;
   return {
+    offsite:process.env.OFFSITE_BACKUP_ENABLED==='true' ? {enabled:true,lastAttemptAt:offsite?.lastAttemptAt||null,lastSuccessAt:offsite?.lastSuccessAt||null,lastError:offsite?.error?'status_unreadable':offsite?.lastError||null,pending:offsite?.pending||0,expiredUnsent:offsite?.expiredUnsent||0} : {enabled:false},
     dailyJob:daily ? {ok:daily.ok !== false,finishedAt:daily.finishedAt || null,queued:daily.queued ?? null,provider:daily.provider || null} : null,
-    scheduler:scheduler ? {lastTickAt:scheduler.lastTickAt || null,daily:scheduler.daily || null,email:scheduler.email || null,backup:scheduler.backup || null} : null,
+    scheduler:scheduler ? {lastTickAt:scheduler.lastTickAt || null,daily:safeTask(scheduler.daily),email:safeTask(scheduler.email),backup:safeTask(scheduler.backup)} : null,
     outbox:{pending,sent,failed},
     latestBackup:latestBackup ? {createdAt:latestBackup.createdAt || null,bytes:latestBackup.bytes || null,integrity:latestBackup.integrity || null} : null
   };

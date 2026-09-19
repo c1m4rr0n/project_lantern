@@ -84,6 +84,11 @@ export class SqliteStorageManager {
   async integrityCheck() { return this.db.prepare('PRAGMA quick_check').get()?.quick_check || 'unknown'; }
 
   close() { this.db.close(); }
+
+  async eraseTenant(tenantId) {
+    if(!SAFE_TENANT.test(tenantId))throw new Error('invalid tenant id');
+    this.db.prepare('DELETE FROM tenant_documents WHERE tenant_id=?').run(tenantId);
+  }
 }
 
 export class SqliteAccountStore {
@@ -123,6 +128,7 @@ export class SqliteAccountStore {
   }
 
   async count() { return Number(this.db.prepare('SELECT COUNT(*) AS count FROM accounts').get().count || 0); }
+  async deleteAccount(userId) { this.db.prepare('DELETE FROM accounts WHERE id=?').run(userId); }
 
   async issueEmailVerification({ email, now=new Date(), ttlMs=24*60*60*1000 }) {
     const row=this.db.prepare('SELECT id, tenant_id, email, created_at, email_verified_at, session_version FROM accounts WHERE email = ?').get(cleanEmail(email));
@@ -258,6 +264,10 @@ export class SqliteTenantStore {
     this.#put('opportunity-changes', all);
     return { acknowledged: changed, acknowledgedAt };
   }
+  async getAuditEvents() { return this.#get('audit-events', []); }
+  async getAnalytics() { return this.#get('analytics', {milestones:{},events:[]}); }
+  async saveAnalytics(value) { return this.#put('analytics',value); }
+  async saveAuditEvents(events) { return this.#put('audit-events', events); }
   async getVendors() { return this.#get('vendors', []); }
   async saveVendors(vendors) { return this.#put('vendors', vendors); }
   async getBilling() { return this.#get('billing', null); }

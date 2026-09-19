@@ -87,6 +87,8 @@ For every behavior change:
 
 ## Current migration priority
 
+Source restoration is complete. Source commercial hardening is RC17–RC19; production remains separately documented RC16 until approved promotion. The historical restoration procedure below is retained for provenance, not an instruction to repeat reconstruction. Use release.json for source identity and CURRENT_DEPLOYMENT.md for effective production.
+
 The public GitHub repository historically became a tarball-only deployment repository after the original source history stopped being pushed. The immediate priority is to make tracked source code the source of truth again **without changing production behavior**.
 
 Use `CODEX_BOOTSTRAP.md` for the exact restoration procedure. Do not begin RC14 feature work until that restoration is committed and its full release gate is green.

@@ -22,6 +22,9 @@ export function setAccountIdentity(payload) {
   if (avatarEl) avatarEl.textContent = (email[0] || 'A').toUpperCase();
   if (account) account.hidden = !email;
   if (guest) guest.hidden = Boolean(email);
+  if(account&&email&&!account.querySelector('[data-account-settings]')){
+    const link=document.createElement('a');link.href='/account.html';link.textContent='Account';link.dataset.accountSettings='1';account.append(link);
+  }
 }
 
 export async function getAccount({ required = true } = {}) {

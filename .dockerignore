@@ -1,4 +1,7 @@
 .git
+_handoff/
+*.tar.gz
+*-checksums.txt
 .env
 .env.*
 !.env.example
