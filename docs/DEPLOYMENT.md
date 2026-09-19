@@ -4,6 +4,8 @@ Actual last-verified production identity lives in CURRENT_DEPLOYMENT.md (RC16 ta
 
 ## Runtime contract
 
+Railway mounts the persistent Railway Volume externally at `/data`. The Dockerfile must not declare a Docker `VOLUME` instruction: Railway rejects it during Docker builds. Keep `DATA_ROOT=/data`, directory creation/ownership, and the `node` runtime user; configure the external mount and verify its writability separately before promotion.
+
 Node 22+, one writable container, persistent /data, SQLite, in-process scheduler. Never intentionally run a second writer or independent cron against this database. Use the Dockerfile with the tracked source; no npm install is needed. npm start remains a supported startup command. Container runs as the node user; verify persistent-volume ownership before promotion.
 
 Required production configuration: NODE_ENV=production, PORT=8787, DATA_ROOT=/data, STORAGE_DRIVER=sqlite, COOKIE_SECURE=true, HTTPS PUBLIC_BASE_URL, strong SESSION_SECRET, SCHEDULER_ENABLED=true, DATA_PROVIDER=sam, EXCLUSION_PROVIDER=sam-extract, MARKET_PROVIDER=usaspending, SAM_API_KEY, EMAIL_PROVIDER=resend, RESEND_API_KEY, EMAIL_FROM, BILLING_PROVIDER=stripe, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_STARTER and STRIPE_PRICE_TEAM. Test Stripe credentials can validate lifecycle; do not confuse selecting the stripe adapter with permission to activate Live. TRUST_PROXY is allowed only behind a trusted proxy that overwrites forwarded headers.
