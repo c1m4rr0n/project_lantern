@@ -1,36 +1,34 @@
-# Security baseline — 1.0 release candidate
+# Security baseline — source RC19
 
-RC17 adds durable security audit events for verification, login, reset, logout and billing changes, with a configurable 90-day engineering retention default. Operational errors use allowlisted codes, not raw provider messages. Optional offsite backups contain sensitive database material and require a private encrypted bucket; see COMMERCIAL_OPERATIONS.md. Production remains RC16 until separately approved; the historical checklist below is not a deployment assertion.
+Production remains RC16 until an approved deployment; this document describes the prepared source.
 
-## Implemented
-- Scrypt password hashing with a unique random salt per password.
-- Signed `HttpOnly` session cookies with `SameSite=Lax`; production readiness requires secure cookies.
-- A server-side `sessionVersion` is checked for every authenticated request. Password reset increments it, revoking older cookies immediately.
-- Email verification is required before workspace APIs are accessible.
-- Verification and password-reset links use random 256-bit tokens, are single-use, expire automatically and are stored only as SHA-256 hashes.
-- Issuing a newer token invalidates an older unconsumed token of the same type.
-- Password-reset and resend endpoints return generic success messages when possible to reduce account enumeration.
-- Auth endpoints use a fixed-window limiter keyed by path and client address. Forwarded addresses are trusted only when `TRUST_PROXY=true`.
-- Request bodies have explicit size caps.
-- Tenant IDs are validated and tenant storage is isolated.
-- SAM credentials remain server-side; enrichment URLs are restricted to approved SAM API hosts.
-- Security headers include `nosniff`, frame denial, no-referrer, a restrictive permissions policy and CSP on static responses.
-- Verification/reset outbox payloads are redacted from archived sent messages after delivery.
-- Repository secret scan is part of the release gate.
-- Billing entitlements are enforced server-side for vendor creation/screening and scheduler work.
-- Stripe webhooks are verified from the raw request body using HMAC-SHA256 and a bounded timestamp tolerance; processed event IDs are retained for idempotency.
+## Implemented controls
 
-## Deliberate limits
-- Logout removes the browser cookie but does not add a server-side denylist entry. Security-sensitive password reset revokes all prior cookies via `sessionVersion`.
-- SQLite launch mode is single-writer/single-instance; horizontal scaling requires the future Postgres adapter.
-- Local fixed-window rate limiting resets on process restart and is not distributed. Before multi-instance deployment, move abuse controls to the edge or a shared store.
-- No CUI/export-controlled data should be uploaded to the MVP. Requirement candidates are decision support, not legal determinations.
+- Salted scrypt password hashes; signed HttpOnly SameSite=Lax sessions, Secure required in production.
+- Verified-email gate, one-time hashed verification/reset tokens and session-version revocation after password reset.
+- Tenant-bound storage and validated tenant paths; server-side subscription/capacity checks.
+- Request body limits, auth/account-action rate limiting, safe static headers and restrictive report CSP.
+- Export/delete require verified session, matching Origin and current password; delete additionally requires explicit DELETE confirmation and confirmed ended billing.
+- Archive rather than destructive vendor removal; retained evidence is available for archived records.
+- CSV size/row caps, canonical validation and serialized capacity/duplicate checks; output formula neutralization and HTML escaping.
+- Durable audit for verification, login, reset, logout, billing state, archive/restore and account export/deletion.
+- Minimal first-party analytics; no public customer analytics endpoint.
+- Signed raw-body Stripe webhook verification, durable processed event IDs, stale-event/terminal-subscription protection; unknown/deleted tenants are ignored.
+- SAM credentials remain server-only; enrichment hosts are allowlisted. Public health masks raw upstream/scheduler errors.
+- Structured operational error logs use allowlisted codes, never raw request bodies, cookies, auth links or provider credentials.
+- Durable outbox retries with provider idempotency; delivered sensitive auth payloads are redacted.
+- Deletion drains application/scheduler work, revokes credentials, cleans tenant/outbox data and persists restart-recovery jobs. Cleanup failure puts the process into 503 recovery mode until repaired/restarted.
+- Fail-fast production configuration, persistent data-root/volume checks, SQLite integrity and single writable instance.
+- Release gate secret scanning; explicit Docker COPY excludes secrets, databases, handoff and release artifacts.
 
-## Remaining before paid public production
-- Deploy behind TLS with `COOKIE_SECURE=true` and an explicit HTTPS `PUBLIC_BASE_URL`.
-- Verify the production sending domain and provider credential.
-- Add centralized application/error monitoring and incident alerts.
-- Complete a real Stripe test-mode subscription lifecycle and validate webhook endpoint monitoring.
-- Add durable audit-event storage for security-sensitive account and admin actions.
-- Add dependency/container/SAST scanning if external runtime dependencies are introduced.
-- Formal privacy/terms/legal review.
+## Retention and residual boundaries
+
+Audit retention defaults to 90 days (AUDIT_RETENTION_DAYS) and detailed analytics to 90 days (ANALYTICS_RETENTION_DAYS), pruned on new events. Analytics milestone timestamps persist until account deletion. Screening history retains 730 entries per vendor; opportunity changes retain 50 per opportunity. These are engineering limits, not approved legal policies.
+
+Deletion removes logical current data; SQLite free pages/WAL, backups and external providers are not promised immediately erased. Private encrypted backup storage, independent retention and restore-time deletion reapplication are required. Opaque deletion receipts must outlive backups capable of resurrecting the account. Set final retention with human/legal review.
+
+Logout clears the browser cookie, not every copied session; password reset revokes previous session versions. Rate limiting is local and resets on restart. No multi-user roles/invites, distributed abuse control or horizontal writers are supported. Do not upload CUI/export-controlled material or secrets. Matching output is evidence, never a legal eligibility ruling.
+
+## External launch gates
+
+Independently provision/verify uptime alert delivery and offsite restore. Review hosting/provider access, retention, privacy/terms, business/tax and trademark decisions. No Stripe Live activation, paid charge, indexing or approved legal publication is performed by this branch. See COMMERCIAL_OPERATIONS.md, ACCOUNT_LIFECYCLE.md and legal/LAUNCH_LEGAL_CHECKLIST.md.

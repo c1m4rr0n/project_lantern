@@ -1,13 +1,15 @@
 {
   "name": "project-lantern",
-  "version": "1.0.0-rc.18",
+  "version": "1.0.0-rc.19",
   "private": true,
   "type": "module",
   "description": "ExcluSignal: federal vendor exclusion monitoring with auditable evidence and procurement intelligence.",
   "scripts": {
+    "analytics:summary": "node --env-file-if-exists=.env scripts/analytics-summary.js",
+    "doctor:stripe": "node --env-file-if-exists=.env scripts/doctor-stripe.js",
     "start": "node --env-file-if-exists=.env server.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check src/brand.js && node --check src/domain/scoring.js && node --check src/domain/requirements.js && node --check src/domain/change-detection.js && node --check src/domain/requirement-delta.js && node --check src/providers/sam.js && node --check src/providers/sam-detail.js && node --check src/providers/sam-watch.js && node --check src/providers/sam-exclusions.js && node --check src/providers/mock-exclusions.js && node --check src/services/vendors.js && node --check src/services/vendor-digest.js && node --check src/services/opportunities.js && node --check scripts/doctor-exclusions.js && node --check scripts/daily-job.js && node --check scripts/backup.js && node --check scripts/deliver-outbox.js && node --check src/ops/status.js && node --check src/runtime/providers.js && node --check src/notifications/auth-email.js && node --check src/notifications/outbox-queue.js && node --check src/notifications/outbox.js && node --check public/auth.js && node --check public/vendors.js && node --check scripts/smoke-auth.js && node --check src/ops/in-process-scheduler.js && node --check scripts/smoke-scheduler.js && node --check scripts/smoke-change-watch.js && node --check scripts/smoke-requirement-delta.js && node --check scripts/smoke-vendor-watch.js && node --check src/runtime/readiness.js && node --check src/runtime/preflight.js && node --check scripts/smoke-production.js && node --check scripts/smoke-lifecycle.js && node --check scripts/secret-scan.js && node --check tests/preflight.test.js && node --check src/billing/plans.js && node --check src/billing/stripe.js && node --check src/billing/service.js && node --check public/pricing.js && node --check public/ui.js",
+    "check": "node scripts/check-all.js",
     "start:mock": "DATA_PROVIDER=mock MARKET_PROVIDER=mock node server.js",
     "doctor:sam": "node --env-file-if-exists=.env scripts/doctor-sam.js",
     "doctor:exclusions": "node --env-file-if-exists=.env scripts/doctor-exclusions.js",
@@ -19,12 +21,13 @@
     "smoke:auth": "node scripts/smoke-auth.js",
     "smoke:scheduler": "node scripts/smoke-scheduler.js",
     "smoke:production": "node scripts/smoke-production.js",
-    "release:gate": "npm run check && npm test && npm run smoke:auth && npm run smoke:vendor-watch && npm run smoke:billing && npm run smoke:change-watch && npm run smoke:requirement-delta && npm run smoke:scheduler && npm run smoke:production && npm run smoke:lifecycle && npm run secret-scan",
+    "release:gate": "npm run check && npm test && npm run smoke:auth && npm run smoke:vendor-watch && npm run smoke:billing && npm run smoke:change-watch && npm run smoke:requirement-delta && npm run smoke:scheduler && npm run smoke:production && npm run smoke:lifecycle && npm run smoke:commercial && npm run secret-scan",
     "smoke:lifecycle": "node scripts/smoke-lifecycle.js",
     "smoke:change-watch": "node scripts/smoke-change-watch.js",
     "smoke:requirement-delta": "node scripts/smoke-requirement-delta.js",
     "smoke:vendor-watch": "node scripts/smoke-vendor-watch.js",
-    "smoke:billing": "node scripts/smoke-billing.js"
+    "smoke:billing": "node scripts/smoke-billing.js",
+    "smoke:commercial": "node scripts/smoke-commercial.js"
   },
   "engines": {
     "node": ">=22"

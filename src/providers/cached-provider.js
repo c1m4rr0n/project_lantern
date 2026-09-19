@@ -45,6 +45,6 @@ export function makeCachedProvider({ provider, path, ttlMs = 15 * 60_000, maxSta
     return inflight;
   }
 
-  fetchCached.meta = () => ({ ...lastMeta });
+  fetchCached.meta = () => ({ ...lastMeta, ...(lastMeta.upstreamError?{upstreamError:'upstream_unavailable'}:{}) });
   return fetchCached;
 }

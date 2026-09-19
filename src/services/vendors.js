@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { normalizeIdentifier, normalizeLegalName } from '../providers/sam-exclusions.js';
 import { audit, withTenantLock } from '../security/events.js';
 import { findDuplicate, previewImport } from './vendor-import.js';
+import { track } from './analytics.js';
 
 const nowIso = now => (now instanceof Date ? now : new Date(now)).toISOString();
 const clean = value => String(value ?? '').trim();
@@ -56,7 +57,7 @@ export class VendorWatchService {
     if(capacity)await capacity(vendors.filter(v=>!v.archivedAt).length);
     const duplicate=vendors.find(v=>(vendor.uei&&v.uei===vendor.uei)||(vendor.cage&&v.cage===vendor.cage)||(!vendor.uei&&!vendor.cage&&vendor.normalizedName&&v.normalizedName===vendor.normalizedName));
     if(duplicate)throw new Error('vendor already exists');
-    vendors.push(vendor);await this.store.saveVendors(vendors);return vendor;
+    vendors.push(vendor);await this.store.saveVendors(vendors);await track(this.store,'first_vendor',{once:true});return vendor;
   }
 
   async update(id,input,{now=new Date()}={}) {
@@ -100,6 +101,7 @@ export class VendorWatchService {
     const now=new Date().toISOString();
     const added=selected.map(r=>({id:randomUUID(),...r.value,createdAt:now,updatedAt:now,archivedAt:null,latestScreening:null}));
     await this.store.saveVendors([...vendors,...added]);await audit(this.store,'vendor.imported');
+    await track(this.store,'first_import',{once:true});await track(this.store,'first_vendor',{once:true});
     return {imported:added.length,items:added};
   }
 
@@ -112,7 +114,7 @@ export class VendorWatchService {
     const index=vendors.findIndex(v=>String(v.id)===String(id));
     if(index<0)return null;
     const vendor=vendors[index];
-    if(vendor.archivedAt)throw new Error('Restore archived vendor before screening');
+    if(vendor.archivedAt)throw Object.assign(new Error('Restore archived vendor before screening'),{status:409,code:'vendor_archived'});
     const effectiveSnapshot=snapshot || (this.exclusionProvider.getSnapshot ? await this.exclusionProvider.getSnapshot({force}) : null);
     const result=effectiveSnapshot && this.exclusionProvider.screenAgainstSnapshot
       ? await Promise.resolve(this.exclusionProvider.screenAgainstSnapshot(vendor,effectiveSnapshot))
@@ -130,6 +132,7 @@ export class VendorWatchService {
     await this.store.appendVendorScreening(vendor.id,entry);
     vendors[index]={...vendor,latestScreening:entry,updatedAt:vendor.updatedAt||nowIso(now)};
     await this.store.saveVendors(vendors);
+    await track(this.store,'first_screen',{once:true});
     return vendorPublic(vendors[index],await this.store.getVendorScreenings(id));
   }
 
@@ -157,6 +160,7 @@ export class VendorWatchService {
       items.push({...entry,legalName:vendor.legalName,uei:vendor.uei,cage:vendor.cage});
     }
     await this.store.saveVendors(vendors);
+    await track(this.store,'first_screen',{once:true});
     return {
       screened:items.length,
       excluded:items.filter(x=>x.status==='excluded').length,

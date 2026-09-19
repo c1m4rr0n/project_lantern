@@ -2,6 +2,7 @@ FROM node:22-slim
 WORKDIR /app
 COPY package.json release.json server.js ./
 COPY src ./src
+COPY scripts ./scripts
 COPY public ./public
 COPY data/company-profile.json data/mock-market-context.json data/mock-opportunities.json ./data/
 ENV NODE_ENV=production \

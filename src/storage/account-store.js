@@ -59,6 +59,7 @@ export class AccountStore {
   async getSessionIdentity(userId) { const data=await this.#read();return publicUser(data.users.find(u=>u.id===String(userId))); }
   async listUsers() { const data=await this.#read();return data.users.map(publicUser); }
   async count() { return (await this.#read()).users.length; }
+  async deleteAccount(userId) {return this.#mutate(async data=>{data.users=data.users.filter(u=>u.id!==userId);data.tokens=data.tokens.filter(t=>t.accountId!==userId);});}
 
   async issueEmailVerification({email,now=new Date(),ttlMs=24*60*60*1000}) { return this.#issue({email,kind:'verify-email',now,ttlMs,skipVerified:true}); }
   async issuePasswordReset({email,now=new Date(),ttlMs=60*60*1000}) { return this.#issue({email,kind:'password-reset',now,ttlMs,skipVerified:false}); }

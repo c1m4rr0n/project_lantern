@@ -11,6 +11,7 @@ import { signedPut, syncOffsiteBackups, uploadVerifiedBackup } from '../src/ops/
 test('release identity matches package and exposes only validated commit',async()=>{
   const pkg=JSON.parse(await readFile(new URL('../package.json',import.meta.url)));
   assert.equal(releaseIdentity({}).version,pkg.version);
+  assert.ok((await readFile(new URL('../CURRENT_STATE.md',import.meta.url),'utf8')).includes('Source version: '+pkg.version));
   assert.equal(releaseIdentity({GIT_COMMIT_SHA:'secret value'}).commit,null);
   assert.equal(releaseIdentity({RAILWAY_GIT_COMMIT_SHA:'a'.repeat(40)}).commit,'a'.repeat(40));
   assert.equal(safeErrorCode(new Error('secret https://user:pass@host')),'operation_failed');

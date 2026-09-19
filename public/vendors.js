@@ -23,7 +23,7 @@ function render(){
   $('#vendorCount').textContent=vendors.length;
   const b=billing?.entitlements||{};const state=billing?.state||{};const banner=$('#billingBanner');
   if(banner){
-    const planName=state.plan==='trial'?'Free trial':state.plan?`${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`:'Current plan';
+    const planName=state.plan==='trial'?'Free trial':state.plan==='team'?'Scale':state.plan?`${state.plan.charAt(0).toUpperCase()}${state.plan.slice(1)}`:'Current plan';
     const remaining=state.plan==='trial'?`${b.trialDaysRemaining} day${b.trialDaysRemaining===1?'':'s'} remaining`:'';
     const cancel=state.cancelAtPeriodEnd&&state.currentPeriodEnd?`Cancels ${new Date(state.currentPeriodEnd).toLocaleDateString()}`:'';
     const planDetail=[remaining,cancel].filter(Boolean).join(' · ');

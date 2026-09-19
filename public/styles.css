@@ -94,6 +94,14 @@ button:disabled{opacity:.65;cursor:wait}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
 /* RC18 import/archive controls remain usable on narrow viewports and in print. */
 .vendorTools,.supportFooter{max-width:1200px;margin:1rem auto;padding:1rem;overflow-wrap:anywhere}
+.vendorTools.detail{min-height:0}
+.vendorTools button,.accountPage button{min-height:44px;padding:10px 14px;border:1px solid #dfe4ed;border-radius:9px;cursor:pointer;font:inherit}
+.vendorTools button:focus-visible,.accountPage button:focus-visible{outline:3px solid #3157d5;outline-offset:2px}
+.accountPage .appMain{max-width:900px;padding:28px 16px}
+.accountPage .detail{min-height:0;margin:20px 0}
+.accountPage .topbar>a{font-weight:800;text-decoration:none;color:#14213d}
+.accountPage .primary{background:#14213d;color:#fff}
+.accountPage .dangerButton{background:#fff1f0;color:#b42318}
 .importRows{max-height:24rem;overflow:auto}
 .importRow{display:flex;gap:.75rem;align-items:start;padding:.5rem;border-bottom:1px solid #ddd}
 .importRow input{width:auto;flex:none}

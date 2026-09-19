@@ -1,43 +1,19 @@
-# Project Lantern — Product boundary
+# ExcluSignal — product boundary
 
-## ICP
-US federal small-business contractors with roughly 5–50 employees and a small business-development/capture function that cannot justify a large enterprise GovCon stack.
+## Primary workflow
 
-## Job to be done
-“Once I decide an opportunity matters, tell me exactly what changed, what requirement changed, whether it creates a blocker for my company, and what needs review before we keep spending proposal time.”
+Federal contractors monitor their vendors/subcontractors against official SAM.gov active exclusions. Add identifiers manually or through confirmed CSV import, screen against a shared snapshot, preserve evidence, review alerts and export retained history. Vendor Watch does not require NAICS or a company profile.
 
-## Commercial wedge
-**Pursuit Change Intelligence with evidence and impact.**
+Matching remains conservative: exact UEI+CAGE, UEI or CAGE supplies stronger identity evidence; legal-name-only matching is review-required. No matching record means only no match in that snapshot. Screening is decision support, not a legal eligibility determination.
 
-Discovery and initial qualification bring a contractor into Lantern. The retained value is monitoring active pursuits and converting amendments into a before/after decision layer:
+## Secondary workflow
 
-1. material metadata delta,
-2. requirement delta,
-3. company-specific hard-blocker detection,
-4. fit-score delta,
-5. source evidence and review acknowledgement.
+Pursuit Watch uses optional company profile/NAICS, deterministic scoring, tracked opportunity changes and requirement candidates with source text. Explicit customer hard-blocker phrases remain auditable. No LLM is used in these critical paths.
 
-## RC6 promise
-For tracked opportunities, Lantern establishes a requirement baseline from the official SAM.gov description. Later versions are compared deterministically. Added, removed and modified requirement candidates are shown separately. Company-defined hard-blocker phrases can force a `skip` result with the exact triggering evidence visible.
+## Commercial model
 
-## Why this is not just an amendment alert
-An amendment alert answers **“did something change?”** Lantern is designed to answer:
+One account/tenant, no invitations or multi-user roles. Trial: 14 days / 25 active vendors. Starter: proposed $39/month / 50; Scale: proposed $99/month / 500, internal billing key team. Archived vendors retain evidence and do not occupy active slots. Inactive billing permits history/export but blocks active monitoring.
 
-- what changed,
-- what requirement changed,
-- whether it became mandatory,
-- whether it matches a company-defined blocker,
-- how the fit score/recommendation moved,
-- what source text caused that conclusion.
+## Boundaries
 
-## Not building in the MVP
-- automated bid submission
-- autonomous legal eligibility determinations
-- autonomous pricing
-- proposal ghostwriting as the core product
-- contact-data brokerage
-- state/local portal scraping at scale
-- CUI/export-controlled document handling
-
-## Safety / product boundary
-Requirement extraction is a machine-generated candidate layer. It is not a legal interpretation of the solicitation. Lantern should preserve source evidence, mark extracted requirements as unverified and keep consequential representations under human control.
+No automatic legal determinations, autonomous bidding/pricing, CUI/export-controlled uploads or claims of approved legal policies. CSV import never automatically screens. Reports use real retained source evidence and do not fabricate missing fields. Multi-user collaboration and horizontal writable scaling remain future work.

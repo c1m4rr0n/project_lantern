@@ -19,7 +19,6 @@
   <section class="detail vendorPanel"><div class="panelHeader vendorPanelHeader"><div><p class="eyebrow">WATCHLIST</p><h2>Federal exclusion monitoring</h2><p class="panelSubcopy">Current vendor status, evidence and screening history in one place.</p></div><div class="vendorPanelTools"><span id="providerMeta" class="providerBadge">Loading source…</span><button id="screenAll" class="primary screenAllButton" type="button">Screen all vendors</button><span id="screenAllStatus" class="screenAllStatus" role="status" aria-live="polite"></span></div></div><div id="vendorList" class="vendorList"></div></section>
   <aside class="detail vendorAdd"><div class="panelTitle"><div><p class="eyebrow">ADD VENDOR</p><h2>Watch a subcontractor</h2></div></div><form id="vendorForm" class="formStack"><label>Legal name<input name="legalName" placeholder="ACME Federal LLC"></label><div class="inlineFields"><label>UEI<input name="uei" maxlength="12" placeholder="12-character UEI"></label><label>CAGE<input name="cage" maxlength="5" placeholder="5-char CAGE"></label></div><label>Internal note<textarea name="notes" rows="3" placeholder="Critical supplier, proposal team, onboarding review…"></textarea></label><button class="primary" type="submit">Add vendor</button><div id="formStatus" class="meta" aria-live="polite"></div></form><p class="meta vendorTip">Best evidence: add UEI or CAGE. A name-only match is deliberately treated as a possible match, not a confirmed identity.</p></aside>
 </section>
-</main>
 <section class="detail vendorTools" aria-labelledby="bulkTitle">
 <h2 id="bulkTitle">Import and retain evidence</h2>
 <p>CSV: legal name, UEI, CAGE, internal note. Maximum 1 MiB / 1,000 rows. Imported vendors are not screened automatically.</p>
@@ -31,6 +30,7 @@
 <p><a href="/api/vendors/export.csv">Export watchlist CSV (includes archived vendors)</a></p>
 <h2>Archived vendors</h2><button id="loadArchive" type="button">Show archived vendors</button><div id="archiveList"></div>
 </section>
+</main>
 <script type="module" src="/vendor-tools.js?v=rc18"></script>
 <script type="module" src="/vendors.js?v=rc15"></script>
 </body></html>

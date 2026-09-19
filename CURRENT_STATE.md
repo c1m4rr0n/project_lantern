@@ -1,6 +1,8 @@
 # ExcluSignal — current source state
 
-Source: RC18 commercial hardening. `release.json` and `package.json` are authoritative for source version. Production remains RC16; this branch does not deploy.
+Source version: 1.0.0-rc.19. `release.json` and `package.json` are authoritative for source version. Production remains RC16; this branch does not deploy.
+
+RC19 adds Scale public naming (internal team key retained), internal milestone analytics/summary CLI, password-confirmed account export and deletion with billing closure checks, crash-recoverable cleanup, durable Stripe replay protection, sandbox-only reconciliation, draft legal materials and a disabled-by-default public indexing switch. Multi-user membership remains future work.
 
 RC18 adds confirmed CSV import (1 MiB / 1,000 rows), duplicate/capacity validation, archival/restoration preserving screening history, CSV and print-ready evidence reports, and optional SUPPORT_EMAIL. Archived vendors do not count as active slots and are never screened; restoration requires capacity. Import never automatically screens.
 
