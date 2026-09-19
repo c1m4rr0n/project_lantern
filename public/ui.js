@@ -1,0 +1,44 @@
+export function setAccountIdentity(payload) {
+  const user = payload?.user || payload || {};
+  const email = String(user.email || '').trim();
+  const emailEl = document.querySelector('#accountEmail');
+  const avatarEl = document.querySelector('#accountAvatar');
+  const account = document.querySelector('#accountCluster');
+  const guest = document.querySelector('#guestAuth');
+  if (emailEl) {
+    emailEl.textContent = email || 'Account';
+    emailEl.title = email;
+  }
+  if (avatarEl) avatarEl.textContent = (email[0] || 'A').toUpperCase();
+  if (account) account.hidden = !email;
+  if (guest) guest.hidden = Boolean(email);
+}
+
+export async function getAccount({ required = true } = {}) {
+  const response = await fetch('/api/auth/me');
+  if (response.status === 401) {
+    if (required) location.href = '/auth.html';
+    return null;
+  }
+  if (!response.ok) throw new Error(`Could not load account (${response.status})`);
+  const payload = await response.json();
+  setAccountIdentity(payload);
+  return payload;
+}
+
+export function bindLogout() {
+  const button = document.querySelector('#logout');
+  if (!button || button.dataset.boundLogout === '1') return;
+  button.dataset.boundLogout = '1';
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    try { await fetch('/api/auth/logout', { method: 'POST' }); }
+    finally { location.href = '/'; }
+  });
+}
+
+export async function initAccount(options = {}) {
+  const account = await getAccount(options);
+  if (account) bindLogout();
+  return account;
+}

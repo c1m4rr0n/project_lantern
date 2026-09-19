@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+data/accounts.json
+data/.dev-session-secret
+data/tenants/
+data/cache/
+*.log
+.DS_Store
+data/*.sqlite*
+data/outbox/
+data/backups/
+data/ops/

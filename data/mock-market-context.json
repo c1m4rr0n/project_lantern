@@ -1,0 +1,29 @@
+{
+  "541512": {
+    "source": "demo-fixture",
+    "naics": "541512",
+    "sampleCount": 4,
+    "sampleValue": 17450000,
+    "averageAward": 4362500,
+    "topRecipients": [
+      {"name":"Northstar Systems (demo)","amount":7200000},
+      {"name":"Blue Harbor Tech (demo)","amount":5100000},
+      {"name":"Civic Cloud Partners (demo)","amount":3150000},
+      {"name":"Metro Cyber Labs (demo)","amount":2000000}
+    ],
+    "awards": []
+  },
+  "541330": {
+    "source": "demo-fixture",
+    "naics": "541330",
+    "sampleCount": 3,
+    "sampleValue": 9300000,
+    "averageAward": 3100000,
+    "topRecipients": [
+      {"name":"Vector Engineering Group (demo)","amount":4500000},
+      {"name":"Atlantic Systems Engineering (demo)","amount":2800000},
+      {"name":"Pioneer Technical Services (demo)","amount":2000000}
+    ],
+    "awards": []
+  }
+}

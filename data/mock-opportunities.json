@@ -1,0 +1,57 @@
+[
+  {
+    "id": "mock-001",
+    "source": "sam.gov",
+    "sourceUrl": "https://sam.gov/opp/mock-001",
+    "solicitationNumber": "DEMO-2026-001",
+    "title": "Cloud Modernization and Cybersecurity Support",
+    "description": "Small business solicitation for cloud migration, systems integration, cybersecurity assessment, zero trust planning and network modernization.",
+    "type": "Solicitation",
+    "postedDate": "2026-09-17",
+    "deadline": "2026-10-20T20:00:00Z",
+    "naics": ["541512"],
+    "setAside": "Total Small Business",
+    "placeOfPerformance": { "state": "PR", "city": "San Juan" },
+    "agency": "DEMO FEDERAL AGENCY",
+    "requirements": [
+      { "id": "r1", "text": "Offeror must provide three relevant past-performance examples.", "mandatory": true, "source": "Section L.3", "status": "unknown" },
+      { "id": "r2", "text": "Technical approach must address cloud migration and cybersecurity controls.", "mandatory": true, "source": "Section L.5", "status": "draftable" },
+      { "id": "r3", "text": "Pricing workbook must be submitted with the proposal.", "mandatory": true, "source": "Attachment B", "status": "missing" }
+    ]
+  },
+  {
+    "id": "mock-002",
+    "source": "sam.gov",
+    "sourceUrl": "https://sam.gov/opp/mock-002",
+    "solicitationNumber": "DEMO-2026-002",
+    "title": "Enterprise Network Engineering Services",
+    "description": "Sources sought for network modernization, architecture, engineering and systems integration services. Remote work possible with occasional travel to Florida.",
+    "type": "Sources Sought",
+    "postedDate": "2026-09-16",
+    "deadline": "2026-10-05T17:00:00Z",
+    "naics": ["541330"],
+    "setAside": "Small Business",
+    "placeOfPerformance": { "state": "FL", "city": "Orlando" },
+    "agency": "DEMO DEFENSE COMPONENT",
+    "requirements": [
+      { "id": "r1", "text": "Capability statement limited to ten pages.", "mandatory": true, "source": "Notice", "status": "draftable" },
+      { "id": "r2", "text": "Identify relevant federal network engineering experience.", "mandatory": true, "source": "Notice", "status": "unknown" }
+    ]
+  },
+  {
+    "id": "mock-003",
+    "source": "sam.gov",
+    "sourceUrl": "https://sam.gov/opp/mock-003",
+    "solicitationNumber": "DEMO-2026-003",
+    "title": "Roof Replacement and Janitorial Support",
+    "description": "Construction and janitorial support for federal facilities.",
+    "type": "Solicitation",
+    "postedDate": "2026-09-15",
+    "deadline": "2026-10-30T17:00:00Z",
+    "naics": ["238160"],
+    "setAside": "Total Small Business",
+    "placeOfPerformance": { "state": "TX", "city": "Austin" },
+    "agency": "DEMO FACILITIES AGENCY",
+    "requirements": []
+  }
+]

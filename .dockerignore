@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+data/*.sqlite*
+data/accounts.json
+data/tenants/
+data/cache/
+data/outbox/
+data/backups/
+data/ops/
+reports/*.bundle
+*.zip

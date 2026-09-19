@@ -1,0 +1,8 @@
+{
+  "name": "Demo Cloud & Cyber LLC",
+  "naics": ["541512", "541519", "541330"],
+  "capabilities": ["cloud migration", "cybersecurity assessment", "systems integration", "network modernization"],
+  "setAsides": ["small business", "total small business"],
+  "regions": ["PR", "FL", "remote"],
+  "negativeKeywords": ["janitorial", "roofing", "food service"]
+}
