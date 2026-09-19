@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);
-async function post(path,payload){const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const data=await r.json().catch(()=>({}));return {r,data};}
+async function post(path,payload){try{const r=await fetch(path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const data=await r.json().catch(()=>({}));return {r,data};}catch{return {r:{ok:false,status:0},data:{message:'Could not connect. Check your connection and try again.'}};}}
 function message(el,text,good=false){el.textContent=text;el.classList.toggle('successText',good);}
 
 const params=new URLSearchParams(location.search);

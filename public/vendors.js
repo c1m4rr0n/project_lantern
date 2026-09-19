@@ -1,8 +1,8 @@
-import { setAccountIdentity, bindLogout } from '/ui.js?v=rc14';
+import { setAccountIdentity, bindLogout } from '/ui.js?v=rc15';
 let vendors=[];let health=null;let billing=null;
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-async function api(path,options){const r=await fetch(path,options);if(r.status===401){location.href='/auth.html';throw new Error('Authentication required');}if(!r.ok){let m='';try{const x=await r.json();m=x.message||x.error||'';}catch{m=await r.text();}const e=new Error(m||`Request failed (${r.status})`);e.status=r.status;throw e;}return r.status===204?null:r.json();}
+async function api(path,options){const r=await fetch(path,options);if(r.status===401){location.href='/auth.html';throw new Error('Authentication required');}if(!r.ok){const body=await r.text();let m=body;try{const x=JSON.parse(body);m=x.message||x.error||'';}catch{}const e=new Error(m||`Request failed (${r.status})`);e.status=r.status;throw e;}return r.status===204?null:r.json();}
 const statusLabel=s=>s==='excluded'?'ACTIVE EXCLUSION':s==='possible-match'?'POSSIBLE MATCH':s==='clear'?'NO MATCH':'NOT SCREENED';
 const statusClass=s=>s==='excluded'?'vendorExcluded':s==='possible-match'?'vendorPossible':s==='clear'?'vendorClear':'vendorUnknown';
 const friendlyMessage=error=>{const raw=String(error?.message||'Something went wrong').replaceAll('_',' ').trim();return `${raw.charAt(0).toUpperCase()}${raw.slice(1)}${/[.!?]$/.test(raw)?'':'.'}`;};
@@ -41,8 +41,24 @@ function render(){
 }
 async function load(){initWelcomeGuide();const [items,h,me,b]=await Promise.all([api('/api/vendors'),api('/api/health'),api('/api/auth/me'),api('/api/billing/status')]);vendors=items;health=h;billing=b;setAccountIdentity(me);bindLogout();render();}
 async function screenOne(id,button){const vendorName=button.closest('.vendorCard')?.querySelector('.vendorName')?.textContent||'vendor';button.disabled=true;button.textContent='Screening…';setActionStatus(`Screening ${vendorName}…`);try{await api(`/api/vendors/${encodeURIComponent(id)}/screen`,{method:'POST',headers:{'content-type':'application/json'},body:'{}'});await load();setActionStatus(`Screening complete for ${vendorName}.`);}catch(e){if(e.status===402)location.href='/pricing.html?reason=access';else setActionStatus(`Screening failed. ${friendlyMessage(e)}`,true);}finally{button.disabled=false;button.textContent='Screen now';}}
-async function ack(id){await api(`/api/vendors/${encodeURIComponent(id)}/screenings/ack`,{method:'POST'});await load();}
-async function removeVendor(id){if(!confirm('Remove this vendor from the watchlist? Screening history remains in tenant storage for the current MVP.'))return;await api(`/api/vendors/${encodeURIComponent(id)}`,{method:'DELETE'});await load();}
-$('#vendorForm').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.currentTarget);const status=$('#formStatus');status.classList.remove('isError');status.textContent='Adding…';try{await api('/api/vendors',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({legalName:f.get('legalName'),uei:f.get('uei'),cage:f.get('cage'),notes:f.get('notes')})});e.currentTarget.reset();status.textContent='Vendor added.';await load();}catch(err){if(err.status===402)location.href='/pricing.html?reason=limit';else{status.classList.add('isError');status.textContent=friendlyMessage(err);}}};
+async function ack(id){try{await api(`/api/vendors/${encodeURIComponent(id)}/screenings/ack`,{method:'POST'});setActionStatus('Marked reviewed.');await refreshAfterSave();}catch(e){setActionStatus(`Could not mark reviewed. ${friendlyMessage(e)}`,true);}}
+async function removeVendor(id){const vendor=vendors.find(v=>v.id===id);if(!confirm(`Remove ${vendor?.legalName||'this vendor'} from the watchlist?`))return;try{await api(`/api/vendors/${encodeURIComponent(id)}`,{method:'DELETE'});setActionStatus('Vendor removed.');await refreshAfterSave();}catch(e){setActionStatus(`Could not remove vendor. ${friendlyMessage(e)}`,true);}}
+async function refreshAfterSave(){try{await load();}catch{setActionStatus('Your change was saved, but the watchlist could not refresh. Reload the page to see the latest data.',true);}}
+$('#vendorForm').onsubmit=async e=>{
+  e.preventDefault();
+  const form=e.currentTarget,button=form.querySelector('button[type="submit"]'),status=$('#formStatus');
+  if(button.disabled)return;
+  const f=new FormData(form);
+  status.classList.remove('isError');
+  if(!['legalName','uei','cage'].some(key=>String(f.get(key)||'').trim())){
+    status.classList.add('isError');status.textContent='Enter a legal name, UEI or CAGE to add a vendor.';form.querySelector('input').focus();return;
+  }
+  button.disabled=true;button.textContent='Adding…';form.setAttribute('aria-busy','true');status.textContent='Adding vendor…';
+  try{
+    await api('/api/vendors',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({legalName:f.get('legalName'),uei:f.get('uei'),cage:f.get('cage'),notes:f.get('notes')})});
+    form.reset();status.textContent='Vendor added. You can screen it from the watchlist.';await refreshAfterSave();
+  }catch(err){if(err.status===402)location.href='/pricing.html?reason=limit';else{status.classList.add('isError');status.textContent=friendlyMessage(err);}}
+  finally{button.disabled=false;button.textContent='Add vendor';form.removeAttribute('aria-busy');}
+};
 $('#screenAll').onclick=async()=>{const b=$('#screenAll');b.disabled=true;b.setAttribute('aria-busy','true');b.textContent='Screening…';setActionStatus('Screening the full watchlist…');try{const result=await api('/api/vendors/screen',{method:'POST',headers:{'content-type':'application/json'},body:'{}'});await load();setActionStatus(`Screened ${result.screened} vendor${result.screened===1?'':'s'}: ${result.excluded} active exclusion${result.excluded===1?'':'s'}, ${result.possibleMatches} possible match${result.possibleMatches===1?'':'es'}, ${result.alerts} alert${result.alerts===1?'':'s'}.`);}catch(e){if(e.status===402)location.href='/pricing.html?reason=access';else setActionStatus(`Screening failed. ${friendlyMessage(e)}`,true);}finally{b.disabled=false;b.removeAttribute('aria-busy');b.textContent='Screen all vendors';}};
 load().catch(e=>{$('#vendorList').innerHTML=`<div class="empty"><h2>Startup error</h2><p>${esc(e.message)}</p></div>`;});

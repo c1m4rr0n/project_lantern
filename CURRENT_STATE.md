@@ -1,5 +1,11 @@
 # ExcluSignal — Current State at Codex Handoff
 
+## Subsequent release work — 2026-09-19
+
+Tracked source restoration is merged. RC14 responsive UX was deployed and verified on exclusignal.com. RC15 adds reliable vendor form submission, explicit post-save refresh errors, network recovery messages for account forms, semantic hidden-state enforcement, keyboard skip navigation, and larger mobile navigation targets. Its full release gate passes, including 93 tests. Release archives are generated from tracked source; historical artifacts remain unchanged.
+
+The handoff below is retained as historical context. Production still uses the checksum-verified runtime bootstrap; direct Git-source deployment migration remains pending.
+
 **Handoff date:** 2026-09-19 (Puerto Rico)
 **Live release:** `1.0.0-rc.13`
 

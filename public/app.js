@@ -1,4 +1,4 @@
-import { setAccountIdentity, bindLogout } from '/ui.js?v=rc14';
+import { setAccountIdentity, bindLogout } from '/ui.js?v=rc15';
 let opportunities=[]; let selected=null; let minScore=0; let healthState=null;
 const $=s=>document.querySelector(s); const money=n=>new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:1}).format(Number(n||0)); const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 async function api(path, options){const r=await fetch(path,options); if(r.status===401){location.href='/auth.html';throw new Error('Authentication required');} if(!r.ok){let message='';try{const x=await r.json();message=x.message||x.error||'';}catch{message=await r.text();}throw new Error(message||`Request failed (${r.status})`);} return r.json();}

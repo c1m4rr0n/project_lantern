@@ -58,6 +58,15 @@ body{background:linear-gradient(180deg,#f8faff 0,#f4f7fb 180px,#f4f7fb 100%);col
   .welcomeGuide{margin:0 16px 14px;padding:18px 16px}.welcomeCopy{padding-right:18px}.welcomeCopy h2{font-size:19px}.welcomeSteps{gap:7px}.welcomeSteps span{width:100%;border-radius:9px}.providerBadge{max-width:100%;white-space:normal}.vendorPanel .panelHeader{align-items:flex-start;flex-direction:column}.vendorPanel .providerBadge{margin-top:8px}
 }
 
+/* Respect semantic visibility even when component styles set display. */
+[hidden]{display:none!important}
+html{scroll-padding-top:130px}
+.skipLink{position:fixed;top:8px;left:12px;z-index:100;background:#172848;color:#fff;padding:12px 16px;border-radius:8px;transform:translateY(-160%)}
+.skipLink:focus{transform:translateY(0)}
+button:disabled{opacity:.65;cursor:wait}
+.vendorCardTop>div{min-width:0}.vendorName,.vendorReason,.matchEvidence,.vendorCard .meta{overflow-wrap:anywhere}
+@media(max-width:680px){.appTopbar .navLink{min-height:44px;display:flex;align-items:center;justify-content:center}.vendorCardTop{flex-wrap:wrap}.vendorStatus{max-width:100%;white-space:normal}.planUsageMeter{flex-wrap:wrap}.matrix{display:block;overflow-x:auto}.formFooter{flex-wrap:wrap}.vendorEmpty{min-height:200px}}
+
 /* Responsive workspace UX polish */
 :where(a,button,input,textarea):focus-visible{outline:3px solid rgba(49,87,213,.24);outline-offset:2px}
 .vendorHero h1{font-size:clamp(34px,4.1vw,52px);line-height:1.02;max-width:860px}.vendorHero .heroCopy>p:not(.eyebrow){max-width:820px}

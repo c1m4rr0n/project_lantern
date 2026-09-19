@@ -1,4 +1,14 @@
 export function setAccountIdentity(payload) {
+  const main = document.querySelector('main');
+  if (main && !document.querySelector('.skipLink')) {
+    main.id ||= 'mainContent';
+    main.tabIndex = -1;
+    const skip = document.createElement('a');
+    skip.className = 'skipLink';
+    skip.href = `#${main.id}`;
+    skip.textContent = 'Skip to content';
+    document.body.prepend(skip);
+  }
   const user = payload?.user || payload || {};
   const email = String(user.email || '').trim();
   const emailEl = document.querySelector('#accountEmail');
