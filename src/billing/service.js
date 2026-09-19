@@ -1,4 +1,5 @@
 import { getPlan, publicPlans, TRIAL_DAYS } from './plans.js';
+import { audit } from '../security/events.js';
 
 const ACTIVE_STATUSES=new Set(['active','trialing']);
 const nowIso=now=>(now instanceof Date?now:new Date(now)).toISOString();
@@ -137,6 +138,7 @@ export class BillingService {
     const eventTenant=tenantIdFromEvent(event);
     if(eventTenant && eventTenant!==this.tenantId) throw new Error('stripe tenant mismatch');
     let state=await this.state({now});
+    const before=JSON.stringify([state.plan,state.status,state.cancelAtPeriodEnd]);
     if(state.processedEvents.includes(eventId)) return {ok:true,duplicate:true,state};
     const object=event?.data?.object||{};
     const type=String(event?.type||'');
@@ -168,6 +170,7 @@ export class BillingService {
     state.processedEvents=state.processedEvents.slice(-100);
     state.updatedAt=nowIso(now);
     await this.store.saveBilling(state);
+    if(before!==JSON.stringify([state.plan,state.status,state.cancelAtPeriodEnd])) await audit(this.store,'billing.changed',{now});
     return {ok:true,duplicate:false,state};
   }
 }

@@ -1,6 +1,9 @@
 FROM node:22-slim
 WORKDIR /app
-COPY . .
+COPY package.json release.json server.js ./
+COPY src ./src
+COPY public ./public
+COPY data/company-profile.json data/mock-market-context.json data/mock-opportunities.json ./data/
 ENV NODE_ENV=production \
     PORT=8787 \
     DATA_ROOT=/data \

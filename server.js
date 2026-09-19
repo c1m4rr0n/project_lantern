@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { releaseIdentity } from './src/runtime/release.js';
+import { audit, logError } from './src/security/events.js';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -82,7 +84,7 @@ async function queueAuthEmail({ template, to, idempotencyKey, payload }) {
     const result=await deliverOutboxFile({outboxRoot:OUTBOX_ROOT,file:queued.file,sender:emailSender()});
     return {...queued,delivery:result.status==='sent'?'sent':'queued'};
   } catch(error) {
-    console.error(JSON.stringify({event:'auth_email_immediate_delivery_failed',template,error:String(error?.message || error).slice(0,300)}));
+    logError('auth_email_immediate_delivery_failed',error);
     return {...queued,delivery:'queued'};
   }
 }
@@ -152,6 +154,7 @@ async function handler(req, res) {
       const expiresAt = process.env.SAM_API_KEY_EXPIRES_AT || null;
       const daysRemaining = expiresAt ? Math.ceil((new Date(expiresAt + 'T23:59:59Z') - new Date()) / 86400000) : null;
       const ops=await operationalStatus({dataRoot:DATA});
+      ops.release=releaseIdentity();
       return json(res, 200, { ok:true,version:APP_VERSION,provider:providerName,providerCache:provider.meta(),marketProvider:marketProviderName,enrichment:samDetailProvider?'available':'unavailable',exclusionProvider:exclusionProviderName,exclusionSnapshot:exclusionProvider?.meta?.()||null,samKeyConfigured:Boolean(process.env.SAM_API_KEY),samKeyExpiresAt:expiresAt,samKeyDaysRemaining:Number.isFinite(daysRemaining)?daysRemaining:null,samKeyNeedsRotation:Number.isFinite(daysRemaining)?daysRemaining<=14:null,auth:'signed-cookie+verified-email',multiTenant:true,storage:STORAGE_DRIVER,schedulerEnabled:SCHEDULER_ENABLED,billingProvider:billingProvider.name,billingConfigured:billingProvider.configured?.()||false,startupPreflight:STARTUP_PREFLIGHT.ok,deployment:{platform:process.env.RAILWAY_PROJECT_ID?'railway':'unknown',region:process.env.RAILWAY_REPLICA_REGION || null,deploymentId:process.env.RAILWAY_DEPLOYMENT_ID || null,volumeMounted:Boolean(process.env.RAILWAY_VOLUME_MOUNT_PATH)},operations:ops,time:new Date().toISOString() });
     }
 
@@ -202,6 +205,7 @@ async function handler(req, res) {
       const input=await body(req,8192);
       const user=await accountStore.verifyEmailToken(input.token,{now:new Date()});
       if (!user) return json(res,400,{error:'invalid_or_expired_token'});
+      await audit(storage.tenantStore(user.tenantId),'email.verified');
       const token=tokenForUser(user);
       return json(res,200,{ok:true,user:{id:user.id,email:user.email},tenantId:user.tenantId},{'set-cookie':sessionCookie(token,{secure:isSecure(req)})});
     }
@@ -211,6 +215,7 @@ async function handler(req, res) {
       const user = await accountStore.authenticate(input);
       if (!user) return json(res, 401, { error:'invalid_credentials' });
       if (!user.emailVerifiedAt) return json(res,403,{error:'email_verification_required'});
+      await audit(storage.tenantStore(user.tenantId),'login.success');
       const token = tokenForUser(user);
       return json(res, 200, { user:{id:user.id,email:user.email},tenantId:user.tenantId }, { 'set-cookie':sessionCookie(token,{secure:isSecure(req)}) });
     }
@@ -227,6 +232,7 @@ async function handler(req, res) {
         const input=await body(req,16384);
         const user=await accountStore.resetPasswordWithToken(input.token,input.password,{now:new Date()});
         if (!user) return json(res,400,{error:'invalid_or_expired_token'});
+        await audit(storage.tenantStore(user.tenantId),'password.reset');
         const token=tokenForUser(user);
         return json(res,200,{ok:true,user:{id:user.id,email:user.email},tenantId:user.tenantId},{'set-cookie':sessionCookie(token,{secure:isSecure(req)})});
       } catch (error) {
@@ -236,6 +242,7 @@ async function handler(req, res) {
     }
 
     if (url.pathname === '/api/auth/logout' && req.method === 'POST') {
+      if(session) await audit(storage.tenantStore(session.tenantId),'logout');
       return json(res, 200, { ok:true }, { 'set-cookie': expiredSessionCookie({ secure:isSecure(req) }) });
     }
     if (url.pathname === '/api/auth/me' && req.method === 'GET') {
@@ -380,7 +387,7 @@ async function handler(req, res) {
     if (error?.code === 'ENOENT') return json(res, 404, { error: 'not_found' });
     if (error?.message === 'request_body_too_large') return json(res, 413, { error:'request_body_too_large' });
     if (error instanceof SyntaxError) return json(res, 400, { error:'invalid_json' });
-    console.error(error);
+    logError('request_failed',error);
     json(res, 500, { error:'internal_error', message:process.env.NODE_ENV === 'production' ? 'Unexpected server error' : error.message });
   }
 }

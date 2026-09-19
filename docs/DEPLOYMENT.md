@@ -1,5 +1,7 @@
 # Deployment runbook — Project Lantern 1.0 candidate
 
+Current deployment identity is in CURRENT_DEPLOYMENT.md; source version is in release.json. For source migration, CI, monitoring, optional S3 backup and rollback compatibility, follow [Commercial operations](COMMERCIAL_OPERATIONS.md). Production remains RC16 until separately approved. Historical sections below describe original milestones.
+
 ## Runtime shape
 Run one Node 22 container with one persistent volume mounted at `/data`. SQLite is intentionally the low-cost initial storage target. **Do not scale the web service horizontally while SQLite is the source of truth.** Move to the future Postgres adapter first.
 

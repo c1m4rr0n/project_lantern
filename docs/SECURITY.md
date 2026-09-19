@@ -1,5 +1,7 @@
 # Security baseline — 1.0 release candidate
 
+RC17 adds durable security audit events for verification, login, reset, logout and billing changes, with a configurable 90-day engineering retention default. Operational errors use allowlisted codes, not raw provider messages. Optional offsite backups contain sensitive database material and require a private encrypted bucket; see COMMERCIAL_OPERATIONS.md. Production remains RC16 until separately approved; the historical checklist below is not a deployment assertion.
+
 ## Implemented
 - Scrypt password hashing with a unique random salt per password.
 - Signed `HttpOnly` session cookies with `SameSite=Lax`; production readiness requires secure cookies.

@@ -4,7 +4,7 @@ import { createHmac } from 'node:crypto';
 import { BillingGateError, createBillingService } from '../src/billing/service.js';
 import { MockBillingProvider, StripeBillingProvider, verifyStripeSignature } from '../src/billing/stripe.js';
 
-function memoryStore(initial=null){let state=initial;return{async getBilling(){return state?structuredClone(state):null;},async saveBilling(next){state=structuredClone(next);return next;},snapshot(){return state;}};}
+function memoryStore(initial=null){let state=initial,events=[];return{async getAuditEvents(){return events;},async saveAuditEvents(next){events=next;},async getBilling(){return state?structuredClone(state):null;},async saveBilling(next){state=structuredClone(next);return next;},snapshot(){return state;}};}
 
 test('new account gets a 14-day trial with a 25-vendor limit',async()=>{
   const store=memoryStore();

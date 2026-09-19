@@ -1,5 +1,13 @@
 
-## Commercial identity (RC10)
+# ExcluSignal — commercial hardening
+
+Source identity lives in `release.json` and `package.json`. Production remains RC16 until an explicitly approved migration. Vendor Exclusion Watch is primary; Pursuit Watch is secondary.
+
+## CI status and release gate
+
+GitHub Actions runs Node 22 on Linux and Windows for PRs to main and pushes to main. A configured workflow is not a claim of a successful hosted run. Run `npm run release:gate` before every milestone commit. No npm install is required. See [commercial operations](docs/COMMERCIAL_OPERATIONS.md) for source migration, monitoring, optional offsite backups and audit retention.
+
+## Historical commercial identity (RC10)
 
 - **Public product name:** ExcluSignal
 - **Internal benchmark codename:** Project Lantern

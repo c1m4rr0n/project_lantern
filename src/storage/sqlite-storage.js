@@ -258,6 +258,8 @@ export class SqliteTenantStore {
     this.#put('opportunity-changes', all);
     return { acknowledged: changed, acknowledgedAt };
   }
+  async getAuditEvents() { return this.#get('audit-events', []); }
+  async saveAuditEvents(events) { return this.#put('audit-events', events); }
   async getVendors() { return this.#get('vendors', []); }
   async saveVendors(vendors) { return this.#put('vendors', vendors); }
   async getBilling() { return this.#get('billing', null); }

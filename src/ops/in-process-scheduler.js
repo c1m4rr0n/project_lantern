@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path';
 import { runDaily } from './daily-run.js';
 import { deliverOutbox } from '../notifications/outbox.js';
 import { createSqliteBackup } from './sqlite-backup.js';
+import { syncOffsiteBackups } from './offsite-backup.js';
+import { safeErrorCode } from '../security/events.js';
 
 async function readJson(path, fallback={}) {
   try { return JSON.parse(await readFile(path,'utf8')); }
@@ -21,7 +23,7 @@ function dueDaily(task, now, hourUtc, retryMs){
   if (task?.completedDate===today || now.getUTCHours()<hourUtc) return false;
   return dueInterval(task?.lastAttemptAt,now,retryMs);
 }
-function errorText(error){return String(error?.message || error || 'unknown error').slice(0,500);}
+function errorText(error){return safeErrorCode(error);}
 
 export async function runOperationalTick({
   accountStore,
@@ -93,6 +95,7 @@ export async function runOperationalTick({
   }
 
   state.lastTickAt=now.toISOString();
+  await syncOffsiteBackups({dataRoot,now});
   await atomicJson(statePath,state);
   return {ok:actions.every(x=>x.status==='ok'),actions,state};
 }

@@ -57,6 +57,8 @@ export class TenantJsonStore {
     all[key]=history.map(event=>{if(event.acknowledgedAt)return event; changed++; return {...event,acknowledgedAt};});
     await atomicJson(this.changesPath,all); return {acknowledged:changed,acknowledgedAt};
   }
+  async getAuditEvents() { return readJson(join(this.dir,'audit-events.json'), []); }
+  async saveAuditEvents(events) { await atomicJson(join(this.dir,'audit-events.json'), events); }
   async getVendors() { return readJson(this.vendorsPath, []); }
   async saveVendors(vendors) { await atomicJson(this.vendorsPath, vendors); return vendors; }
   async getBilling() { return readJson(this.billingPath, null); }
