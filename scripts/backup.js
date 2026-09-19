@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createSqliteBackup } from '../src/ops/sqlite-backup.js';
+import { syncOffsiteBackups } from '../src/ops/offsite-backup.js';
 
 const ROOT=fileURLToPath(new URL('..', import.meta.url));
 const dataRoot=resolve(process.env.DATA_ROOT || join(ROOT,'data'));
@@ -12,3 +13,5 @@ const manifest=await createSqliteBackup({
   retentionCount:Number(process.env.BACKUP_RETENTION_COUNT || 7)
 });
 console.log(JSON.stringify({ok:true,file:manifest.file,bytes:manifest.bytes,sha256:manifest.sha256,integrity:manifest.integrity}));
+const remote=await syncOffsiteBackups({dataRoot});
+console.log(JSON.stringify({event:'offsite_backup',enabled:remote.enabled!==false,pending:remote.pending||0,lastError:remote.lastError||null}));

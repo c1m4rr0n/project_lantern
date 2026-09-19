@@ -10,7 +10,7 @@ export const PAID_PLANS = Object.freeze({
   }),
   team: Object.freeze({
     key:'team',
-    name:'Team',
+    name:'Scale',
     monthlyCents:9900,
     vendorLimit:500,
     stripePriceEnv:'STRIPE_PRICE_TEAM'

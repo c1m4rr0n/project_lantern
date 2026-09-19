@@ -1,82 +1,15 @@
-# ExcluSignal — Current State at Codex Handoff
+# ExcluSignal — current source state
 
-## Subsequent release work — 2026-09-19
+Source version: 1.0.0-rc.19. `release.json` and `package.json` are authoritative for source version. Production remains RC16; this branch does not deploy.
 
-Tracked source restoration is merged. RC14 responsive UX was deployed and verified on exclusignal.com. RC15 adds reliable vendor form submission, explicit post-save refresh errors, network recovery messages for account forms, semantic hidden-state enforcement, keyboard skip navigation, and larger mobile navigation targets. Its full release gate passes, including 93 tests. Release archives are generated from tracked source; historical artifacts remain unchanged.
+RC19 adds Scale public naming (internal team key retained), internal milestone analytics/summary CLI, password-confirmed account export and deletion with billing closure checks, crash-recoverable cleanup, durable Stripe replay protection, sandbox-only reconciliation, draft legal materials and a disabled-by-default public indexing switch. Multi-user membership remains future work.
 
-The handoff below is retained as historical context. Production still uses the checksum-verified runtime bootstrap; direct Git-source deployment migration remains pending.
+RC18 adds confirmed CSV import (1 MiB / 1,000 rows), duplicate/capacity validation, archival/restoration preserving screening history, CSV and print-ready evidence reports, and optional SUPPORT_EMAIL. Archived vendors do not count as active slots and are never screened; restoration requires capacity. Import never automatically screens.
 
-**Handoff date:** 2026-09-19 (Puerto Rico)
-**Live release:** `1.0.0-rc.13`
+Tracked source was restored at `03ed304`. RC14/15 improved responsive/accessibility UX and vendor submission. RC16 restores SAM snapshot metadata on process startup.
 
-## What is live now
+RC17 prepares direct Docker/source deployment, Linux/Windows CI, non-secret release identity, durable account/billing audit events, safe operational error metadata and optional S3-compatible verified backup upload. No external monitor or bucket is provisioned.
 
-RC13 is running on Railway behind `exclusignal.com` and the hosted startup log verified the exact RC13 runtime SHA-256:
+Vendor Exclusion Watch remains primary. Matching/scoring/requirements are deterministic. SQLite remains one writable instance on /data; JSON storage remains supported for local testing.
 
-`ccc76e2ea030db71ef787bd1691e2defd73ec95b705dfbdda4e26b9e26ef19d1`
-
-The live service uses SAM providers + SQLite storage + in-process scheduler on a persistent `/data` volume.
-
-## RC13 purpose
-
-RC13 fixed a real mobile presentation defect from RC12: browsers could combine new HTML with an older cached `styles.css` because static assets reused stable names without an explicit beta cache policy.
-
-RC13 therefore:
-
-- serves static beta assets with `Cache-Control: no-store, max-age=0`;
-- versions browser asset references with `?v=rc13`;
-- reorganizes the mobile application header;
-- keeps the signed-in account visible;
-- adds a first-use Vendor Watch guide;
-- explicitly states that Vendor Watch does not require NAICS/company profile;
-- clarifies that Company profile primarily powers Pursuit Watch;
-- improves verification/resend feedback;
-- refreshes the favicon.
-
-No intended SAM exclusion matching, Stripe entitlement, tenant isolation or persistence behavior was changed by RC13.
-
-## Hosted visual QA
-
-Post-deployment mobile screenshots confirmed that the stale/mixed CSS problem is resolved. The public landing page and authenticated Vendor Watch shell render coherently on Android.
-
-RC14 polish candidates after source restoration:
-
-- normalize `ExcluSignal` capitalization everywhere;
-- reduce mobile workspace-nav density;
-- move `Screen all` into Vendor Watch content hierarchy;
-- improve the plan/usage presentation;
-- compact the legal notice while retaining it;
-- reduce form field vertical height on mobile;
-- reduce Vendor Watch hero headline size on small screens;
-- show `Not screened yet` instead of `—` for an empty source snapshot.
-
-## Repository problem to solve before RC14
-
-The public GitHub repository currently tracks release tarballs/checksums but not the full current source tree. Earlier development source/history exists in a complete Git bundle through RC10.
-
-This handoff includes:
-
-- `project-lantern-history-1.0.0-rc.10.bundle` — complete original Git history through RC10;
-- `project-lantern-rc13-source-reconstruction.tar.gz` — reconstructed full source tree using RC10 history plus the exact RC13 runtime overlay and updated UI tests;
-- `rc10-to-rc13-source-reconstruction.patch` — reviewable patch from RC10 source to the reconstructed RC13 source state.
-
-The reconstructed tree was validated before handoff. See `QA_HANDOFF.md`.
-
-## Recommended immediate sequence
-
-1. Restore tracked source into the current public repository on a feature branch using `CODEX_BOOTSTRAP.md`.
-2. Run the full release gate and review the diff.
-3. Merge source restoration without changing production deployment behavior.
-4. Separately migrate Railway from tarball bootstrap to tracked GitHub source deployment.
-5. Validate the source-based deployment against RC13 behavior.
-6. Only then start RC14 UX work.
-
-## Remaining broader launch gates
-
-- external uptime/error monitoring;
-- independent/off-volume disaster recovery;
-- Stripe live onboarding and real paid-customer lifecycle before claiming live revenue;
-- privacy/terms/tax/business/legal review appropriate to launch;
-- formal trademark review;
-- willingness-to-pay validation with real contractors;
-- Postgres/worker architecture before horizontal application scaling.
+See docs/COMMERCIAL_OPERATIONS.md for migration/rollback and optional configuration. Remaining external gates include actual source deployment, independent backup restore drill, external alerts, reviewed legal/business decisions and Stripe Live approval. Historical reports and QA_HANDOFF describe their dated releases, not current production.

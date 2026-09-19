@@ -29,7 +29,7 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
     }
     const [profile,vendors]=await Promise.all([store.getProfile(),store.getVendors?.()||[]]);
     const opportunityReady=configured(profile);
-    const vendorReady=Array.isArray(vendors)&&vendors.length>0;
+    const vendorReady=Array.isArray(vendors)&&vendors.some(v=>!v.archivedAt);
     if (!opportunityReady && !vendorReady) { results.push({tenantId:user.tenantId,status:'skipped-unconfigured'}); continue; }
     eligible.push({user,store,profile,vendors,opportunityReady,vendorReady});
   }
@@ -47,7 +47,7 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
       await service.sync();
       items = await service.list();
     }
-    let vendorDigest=buildVendorDigest(await store.getVendors?.()||[]);
+    let vendorDigest=buildVendorDigest((await store.getVendors?.()||[]).filter(v=>!v.archivedAt));
     let vendorScreening=null;
     if(vendorReady){
       if(!exclusionProvider) throw new Error('vendor exclusion provider is not configured');

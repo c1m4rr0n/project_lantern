@@ -69,3 +69,14 @@ Tarball bootstrap deployment was a workaround for earlier GitHub write limitatio
 ## D17 — Release status requires evidence from the effective runtime
 
 A Railway deployment marked `SUCCESS` is not enough. Confirm the effective runtime through expected checksum/version/startup logs and health/API behavior. This rule exists because `redeploy` previously reused an older snapshot even after the service configuration changed.
+## D18 — Source release and effective deployment are separate identities
+
+release.json/package.json identify prepared source. Runtime commit is supplied by an explicit validated environment value. CURRENT_DEPLOYMENT records separately verified deployed state; branch version bumps never imply deployment.
+
+## D19 — Commercial hardening without multi-user claims
+
+Scale is the public name for the existing team billing key and 500-vendor entitlement, not invitations/roles. Archival preserves vendor history and frees active capacity; restoration rechecks capacity. Imports require preview/explicit confirmation and never auto-screen.
+
+## D20 — Account erasure fails closed
+
+Require password plus explicit confirmation, reconcile ended billing before erasure, drain in-process work and persist restart recovery. Keep minimal opaque deletion receipts until relevant backups expire. Incomplete cleanup requires repair/restart, never silent partial success. Legal retention and public policy approval remain human decisions.

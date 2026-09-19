@@ -3,6 +3,9 @@ import { dirname, join } from 'node:path';
 import { runDaily } from './daily-run.js';
 import { deliverOutbox } from '../notifications/outbox.js';
 import { createSqliteBackup } from './sqlite-backup.js';
+import { syncOffsiteBackups } from './offsite-backup.js';
+import { safeErrorCode } from '../security/events.js';
+import { withActivity } from '../security/activity.js';
 
 async function readJson(path, fallback={}) {
   try { return JSON.parse(await readFile(path,'utf8')); }
@@ -21,7 +24,7 @@ function dueDaily(task, now, hourUtc, retryMs){
   if (task?.completedDate===today || now.getUTCHours()<hourUtc) return false;
   return dueInterval(task?.lastAttemptAt,now,retryMs);
 }
-function errorText(error){return String(error?.message || error || 'unknown error').slice(0,500);}
+function errorText(error){return safeErrorCode(error);}
 
 export async function runOperationalTick({
   accountStore,
@@ -63,6 +66,7 @@ export async function runOperationalTick({
       actions.push({task:'daily',status:'ok',queued:result.queued,skipped:result.skipped});
     } catch (error) {
       state.daily.lastError=errorText(error);
+      state.daily.lastFailureAt=now.toISOString();state.daily.lastFailureCode=state.daily.lastError;
       actions.push({task:'daily',status:'failed',error:state.daily.lastError});
     }
   }
@@ -72,10 +76,11 @@ export async function runOperationalTick({
     try {
       const result=await deliverOutboxFn({outboxRoot,sender:emailSender,limit:Math.max(1,Number(emailBatchLimit)||100),now});
       if (result.ok) { state.email.lastSuccessAt=now.toISOString(); state.email.lastError=null; }
-      else state.email.lastError=`${result.failed} delivery failure(s)`;
+      else {state.email.lastError=`${result.failed} delivery failure(s)`;state.email.lastFailureAt=now.toISOString();state.email.lastFailureCode='delivery_failed';}
       actions.push({task:'email',status:result.ok?'ok':'partial',processed:result.processed,sent:result.sent,failed:result.failed});
     } catch (error) {
       state.email.lastError=errorText(error);
+      state.email.lastFailureAt=now.toISOString();state.email.lastFailureCode=state.email.lastError;
       actions.push({task:'email',status:'failed',error:state.email.lastError});
     }
   }
@@ -88,11 +93,13 @@ export async function runOperationalTick({
       actions.push({task:'backup',status:'ok',file:manifest.file,integrity:manifest.integrity});
     } catch (error) {
       state.backup.lastError=errorText(error);
+      state.backup.lastFailureAt=now.toISOString();state.backup.lastFailureCode=state.backup.lastError;
       actions.push({task:'backup',status:'failed',error:state.backup.lastError});
     }
   }
 
   state.lastTickAt=now.toISOString();
+  await syncOffsiteBackups({dataRoot,now});
   await atomicJson(statePath,state);
   return {ok:actions.every(x=>x.status==='ok'),actions,state};
 }
@@ -103,7 +110,7 @@ export function startOperationalScheduler({ intervalMs=60_000, logger=console, .
     if(stopped||running)return {skipped:true};
     running=true;
     try {
-      const result=await runOperationalTick({...options,now:new Date()});
+      const result=await withActivity(()=>runOperationalTick({...options,now:new Date()}));
       if(result.actions.length) logger.log(JSON.stringify({event:'scheduler_tick',actions:result.actions}));
       return result;
     } catch(error) {

@@ -1,5 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { normalizeIdentifier, normalizeLegalName } from '../providers/sam-exclusions.js';
+import { audit, withTenantLock } from '../security/events.js';
+import { findDuplicate, previewImport } from './vendor-import.js';
+import { track } from './analytics.js';
 
 const nowIso = now => (now instanceof Date ? now : new Date(now)).toISOString();
 const clean = value => String(value ?? '').trim();
@@ -29,12 +32,16 @@ export class VendorWatchService {
   constructor({ store, exclusionProvider }) {
     this.store=store;
     this.exclusionProvider=exclusionProvider;
+    for(const name of ['add','update','archive','restore','importCsv','screenOne','screenAll','acknowledge']) {
+      const method=this[name].bind(this);
+      this[name]=(...args)=>withTenantLock(`vendors:${store.tenantId}`,()=>method(...args));
+    }
   }
 
-  async list() {
+  async list({archived=false,all=false}={}) {
     const vendors=await this.store.getVendors();
-    const all=await this.store.getVendorScreenings();
-    return vendors.map(v=>vendorPublic(v,all[String(v.id)]||[]));
+    const history=await this.store.getVendorScreenings();
+    return vendors.filter(v=>all || Boolean(v.archivedAt)===archived).map(v=>vendorPublic(v,history[String(v.id)]||[]));
   }
 
   async get(id) {
@@ -43,13 +50,14 @@ export class VendorWatchService {
     return vendorPublic(vendor,await this.store.getVendorScreenings(id));
   }
 
-  async add(input,{now=new Date()}={}) {
+  async add(input,{now=new Date(),capacity=null}={}) {
     const validated=validateVendor(input);
     const vendor={id:randomUUID(),...validated,normalizedName:normalizeLegalName(validated.legalName),createdAt:nowIso(now),updatedAt:nowIso(now),latestScreening:null};
     const vendors=await this.store.getVendors();
+    if(capacity)await capacity(vendors.filter(v=>!v.archivedAt).length);
     const duplicate=vendors.find(v=>(vendor.uei&&v.uei===vendor.uei)||(vendor.cage&&v.cage===vendor.cage)||(!vendor.uei&&!vendor.cage&&vendor.normalizedName&&v.normalizedName===vendor.normalizedName));
     if(duplicate)throw new Error('vendor already exists');
-    vendors.push(vendor);await this.store.saveVendors(vendors);return vendor;
+    vendors.push(vendor);await this.store.saveVendors(vendors);await track(this.store,'first_vendor',{once:true});return vendor;
   }
 
   async update(id,input,{now=new Date()}={}) {
@@ -57,15 +65,44 @@ export class VendorWatchService {
     const index=vendors.findIndex(v=>String(v.id)===String(id));
     if(index<0)return null;
     const validated=validateVendor(input,vendors[index]);
+    if(findDuplicate({...validated,normalizedName:normalizeLegalName(validated.legalName)},vendors.filter((_,i)=>i!==index)))throw new Error('vendor already exists');
     vendors[index]={...vendors[index],...validated,normalizedName:normalizeLegalName(validated.legalName),updatedAt:nowIso(now)};
     await this.store.saveVendors(vendors);return vendors[index];
   }
 
-  async remove(id) {
+  async remove(id) { return this.archive(id); }
+
+  async archive(id) {
     const vendors=await this.store.getVendors();
-    const next=vendors.filter(v=>String(v.id)!==String(id));
-    if(next.length===vendors.length)return false;
-    await this.store.saveVendors(next);return true;
+    const vendor=vendors.find(v=>String(v.id)===String(id));
+    if(!vendor)return false;
+    if(!vendor.archivedAt){vendor.archivedAt=new Date().toISOString();await this.store.saveVendors(vendors);await audit(this.store,'vendor.archived',{subjectId:vendor.id});}
+    return true;
+  }
+
+  async restore(id,{capacity=null}={}) {
+    const vendors=await this.store.getVendors();const vendor=vendors.find(v=>String(v.id)===String(id));
+    if(!vendor)return null;
+    if(vendor.archivedAt){if(capacity)await capacity(vendors.filter(v=>!v.archivedAt).length);vendor.archivedAt=null;await this.store.saveVendors(vendors);await audit(this.store,'vendor.restored',{subjectId:vendor.id});}
+    return vendor;
+  }
+
+  async previewCsv(text) {return previewImport(text,await this.store.getVendors(),validateVendor,normalizeLegalName);}
+
+  async importCsv({text,fingerprint,confirmed,rows},{capacity}={}) {
+    if(confirmed!==true)throw new Error('Explicit confirmation required');
+    const vendors=await this.store.getVendors();const preview=previewImport(text,vendors,validateVendor,normalizeLegalName);
+    if(preview.fingerprint!==fingerprint){const error=new Error('Watchlist changed; preview again');error.status=409;throw error;}
+    if(!Array.isArray(rows)||!rows.length||new Set(rows).size!==rows.length)throw new Error('Select valid rows');
+    const selected=rows.map(n=>preview.rows.find(r=>r.row===n&&r.status==='valid'));
+    if(selected.some(x=>!x))throw new Error('Only valid preview rows can be imported');
+    if(!capacity)throw new Error('Import capacity check required');
+    await capacity(vendors.filter(v=>!v.archivedAt).length+selected.length-1);
+    const now=new Date().toISOString();
+    const added=selected.map(r=>({id:randomUUID(),...r.value,createdAt:now,updatedAt:now,archivedAt:null,latestScreening:null}));
+    await this.store.saveVendors([...vendors,...added]);await audit(this.store,'vendor.imported');
+    await track(this.store,'first_import',{once:true});await track(this.store,'first_vendor',{once:true});
+    return {imported:added.length,items:added};
   }
 
   async history(id){return this.store.getVendorScreenings(id);}
@@ -77,6 +114,7 @@ export class VendorWatchService {
     const index=vendors.findIndex(v=>String(v.id)===String(id));
     if(index<0)return null;
     const vendor=vendors[index];
+    if(vendor.archivedAt)throw Object.assign(new Error('Restore archived vendor before screening'),{status:409,code:'vendor_archived'});
     const effectiveSnapshot=snapshot || (this.exclusionProvider.getSnapshot ? await this.exclusionProvider.getSnapshot({force}) : null);
     const result=effectiveSnapshot && this.exclusionProvider.screenAgainstSnapshot
       ? await Promise.resolve(this.exclusionProvider.screenAgainstSnapshot(vendor,effectiveSnapshot))
@@ -94,17 +132,19 @@ export class VendorWatchService {
     await this.store.appendVendorScreening(vendor.id,entry);
     vendors[index]={...vendor,latestScreening:entry,updatedAt:vendor.updatedAt||nowIso(now)};
     await this.store.saveVendors(vendors);
+    await track(this.store,'first_screen',{once:true});
     return vendorPublic(vendors[index],await this.store.getVendorScreenings(id));
   }
 
   async screenAll({now=new Date(),force=false,snapshot=null}={}) {
     if(!this.exclusionProvider)throw new Error('vendor screening provider is not configured');
     const vendors=await this.store.getVendors();
-    if(!vendors.length)return {screened:0,excluded:0,possibleMatches:0,changed:0,alerts:0,source:null,items:[]};
+    if(!vendors.some(v=>!v.archivedAt))return {screened:0,excluded:0,possibleMatches:0,changed:0,alerts:0,source:null,items:[]};
     snapshot=snapshot||await this.exclusionProvider.getSnapshot({force});
     const items=[];
     for(let i=0;i<vendors.length;i++){
       const vendor=vendors[i];
+      if(vendor.archivedAt)continue;
       const screened=this.exclusionProvider.screenAgainstSnapshot
         ? this.exclusionProvider.screenAgainstSnapshot(vendor,snapshot)
         : await this.exclusionProvider.screen(vendor,{force:false});
@@ -120,6 +160,7 @@ export class VendorWatchService {
       items.push({...entry,legalName:vendor.legalName,uei:vendor.uei,cage:vendor.cage});
     }
     await this.store.saveVendors(vendors);
+    await track(this.store,'first_screen',{once:true});
     return {
       screened:items.length,
       excluded:items.filter(x=>x.status==='excluded').length,
