@@ -3,6 +3,7 @@ import {mkdir,readFile,writeFile,rename,readdir,stat,rm} from 'node:fs/promises'
 import {join} from 'node:path';
 import {normalizeSamOpportunity} from './sam.js';
 import {integer,discoveryError} from '../domain/discovery.js';
+import {isSamBudgetError} from '../ops/sam-request-budget.js';
 const date=value=>`${String(value.getUTCMonth()+1).padStart(2,'0')}/${String(value.getUTCDate()).padStart(2,'0')}/${value.getUTCFullYear()}`;
 export function discoveryUrl({query,from,to,limit,offset,apiKey}) {
   const url=new URL('https://api.sam.gov/opportunities/v2/search');
@@ -36,8 +37,8 @@ export class SamDiscoveryPages {
           const remaining=args.budget.deadline-args.budget.clock();if(remaining<=0)throw discoveryError(attempt?'discovery_upstream_unavailable':'discovery_time_budget');
           args.budget.requests++;this.nextRequest=this.now()+this.gap;
           let transient=false;
-          try{response=await this.fetchImpl(discoveryUrl({...args,apiKey:this.apiKey}),{headers:{'user-agent':'ExcluSignal/RC21 discovery'},signal:AbortSignal.timeout(Math.max(1,Math.min(10000,remaining)))});}
-          catch{transient=true;}
+          try{response=await this.fetchImpl(discoveryUrl({...args,apiKey:this.apiKey}),{redirect:'error',headers:{'user-agent':'ExcluSignal/RC21 discovery'},signal:AbortSignal.timeout(Math.max(1,Math.min(10000,remaining)))});}
+          catch(error){if(isSamBudgetError(error)){args.budget.requests--;throw error;}transient=true;}
           if(response?.status===429){const header=response.headers?.get?.('retry-after');const retry=header?Number(header):NaN;this.cooldown=this.now()+integer(retry*1000,60000,1000,86400000);throw discoveryError('discovery_rate_limited');}
           if(response?.status===404){
             // SAM documents "No Data found" as 404. Recognize only that explicit response,

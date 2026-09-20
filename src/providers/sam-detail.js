@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import {isSamBudgetError} from '../ops/sam-request-budget.js';
 
 const SAFE_ID = /^[a-zA-Z0-9._-]{1,160}$/;
 const ALLOWED_HOSTS = new Set(['api.sam.gov', 'api-alpha.sam.gov']);
@@ -78,6 +79,7 @@ export class SamDetailCache {
         await writeCache(path, { fetchedAt: result.fetchedAt, description });
         return result;
       } catch (error) {
+        if(isSamBudgetError(error))throw error;
         if (cached && age <= this.maxStaleMs) return { ...cached, cache: 'stale-fallback', upstreamError: error.message };
         throw error;
       } finally {

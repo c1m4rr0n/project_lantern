@@ -1,7 +1,7 @@
 import {join} from 'node:path';
 import {SamDiscoveryPages} from './sam-discovery.js';
 import {fetchMockOpportunities} from './mock.js';
-import {discoverOpportunities,discoveryConfig} from '../domain/discovery.js';
+import {discoverOpportunities,discoveryConfig,integer} from '../domain/discovery.js';
 
 export function createDiscoveryProvider({providerName,env,dataRoot,fetchImpl=fetch,log=entry=>console.log(JSON.stringify(entry))}) {
   const pages=new SamDiscoveryPages({root:join(dataRoot,'cache/sam-discovery'),apiKey:env.SAM_API_KEY,env,fetchImpl});
@@ -12,9 +12,13 @@ export function createDiscoveryProvider({providerName,env,dataRoot,fetchImpl=fet
     return {items,totalRecords:all.length,rawCount:items.length,cache:'hit'};
   };
   const provider=async profile=>(await provider.discover(profile)).items;
+  provider.freshnessMs=integer(env.DISCOVERY_FRESHNESS_MS,integer(env.OPPORTUNITY_CACHE_TTL_MS,900000,1000,86400000),1000,86400000);
   provider.discover=async profile=>{
     try{
-      const result=await discoverOpportunities({profile,page,config});
+      const lease=provider.budget?.current().lease;
+      // A fair scheduled grant bounds this discovery, leaving other tenants' grants reserved.
+      const effective=lease?.remaining>0?{...config,maxRequests:Math.min(config.maxRequests,lease.remaining)}:config;
+      const result=await discoverOpportunities({profile,page,config:effective});
       log({event:'opportunity.discovery',...result.summary});
       return result;
     }catch(error){

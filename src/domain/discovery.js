@@ -8,12 +8,22 @@ export function discoveryConfig(env={}) {
 }
 export const profileFingerprint=profile=>createHash('sha256').update(JSON.stringify(profile)).digest('hex');
 const unique=values=>[...new Set(values)];
-const STOP=new Set('and the for with services service solutions solution support company business general professional management provide providing'.split(' '));
+const STOP=new Set('and the for with services service solutions solution support company business general professional management provide providing consulting consultant consultants technology technologies information technical enterprise enterprises provider providers experienced experience quality innovative capabilities capability development'.split(' '));
+export function capabilityTerms(capabilities=[]) {
+  const terms=[],seen=new Set();
+  for(const value of capabilities){
+    const words=unique((String(value).normalize('NFKD').toLowerCase().replace(/[^a-z0-9\s]/g,' ').match(/[a-z0-9]+/g)||[]).filter(word=>word.length>=3&&/[a-z]/.test(word)&&!STOP.has(word))).slice(0,4);
+    if(!words.length)continue;
+    const key=[...words].sort().join(' ');if(seen.has(key))continue;
+    seen.add(key);terms.push(words.join(' '));if(terms.length===3)break;
+  }
+  return terms;
+}
 const STATES=new Set('AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY PR VI GU AS MP'.split(' '));
 export function planDiscovery(profile={}) {
   profile ||= {};
   const naics=unique((profile.naics||[]).map(x=>String(x).trim()).filter(x=>/^\d{2,6}$/.test(x))).slice(0,8);
-  const terms=unique((profile.capabilities||[]).flatMap(x=>String(x).toLowerCase().match(/[a-z0-9][a-z0-9-]{2,}/g)||[]).filter(x=>!STOP.has(x))).slice(0,3);
+  const terms=capabilityTerms(profile.capabilities||[]);
   const regions=(profile.regions||[]).map(x=>String(x).trim().toUpperCase());
   const states=regions.some(x=>['REMOTE','GLOBAL','NATIONWIDE','ANYWHERE'].includes(x))?[]:unique(regions.filter(x=>STATES.has(x))).slice(0,2);
   const bases=naics.length?naics.map(ncode=>({ncode})):terms.map(title=>({title}));

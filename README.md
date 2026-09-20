@@ -12,6 +12,8 @@ RC20: shared responsive workspace navigation, secure-access form polish, context
 
 RC21 (candidate): [profile-aware opportunity discovery](docs/OPPORTUNITY_DISCOVERY.md), real SAM pagination, adaptive coverage, bounded exact-query caching/retention and tenant-specific discovery metrics. Default caps: 500 records/page, 5,000 raw records, 20 HTTP attempts; 30 → 90 → 180 → 365 days with local-score early stopping. Empty profiles must be configured before discovery. Existing tracked pursuits retain per-notice Change Watch. [Validation](reports/RC21-VALIDATION.md).
 
+RC21 final safeguards: optional `SAM_DAILY_REQUEST_BUDGET` accounts for runtime SAM calls across tenants/retries/tracked refresh with persisted UTC usage and fair scheduled grants; unset means no daily allowance is claimed. `DISCOVERY_FRESHNESS_MS` protects recent manual searches from repeated calls; last-searched time is visible. Capability fallback uses at most three meaningful normalized phrases, never generic `IT services`. Operator usage report: `npm run sam:usage` (no network). No production setting was changed.
+
 RC19: Scale naming, private first-party analytics, password-confirmed account export/deletion, subscription lifecycle/reconciliation coverage and draft launch/legal materials.
 
 ## Local development and validation

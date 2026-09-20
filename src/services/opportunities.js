@@ -4,6 +4,7 @@ import { extractRequirements } from '../domain/requirements.js';
 import { detectMaterialChanges, detectFitImpact } from '../domain/change-detection.js';
 import { detectRequirementDelta } from '../domain/requirement-delta.js';
 import {planDiscovery,profileFingerprint,discoveryError} from '../domain/discovery.js';
+import {isSamBudgetError} from '../ops/sam-request-budget.js';
 
 const syncing=new Map();
 
@@ -103,12 +104,13 @@ function requirementOnlyEvent(opportunityId, delta, detectedAt) {
 }
 
 export class OpportunityService {
-  constructor({ store, provider, detailProvider = null, watchProvider = null, excludeDemoSeed = false }) {
+  constructor({ store, provider, detailProvider = null, watchProvider = null, excludeDemoSeed = false, now=Date.now }) {
     this.store = store;
     this.provider = provider;
     this.detailProvider = detailProvider;
     this.watchProvider = watchProvider;
     this.excludeDemoSeed = Boolean(excludeDemoSeed);
+    this.now=now;
   }
   async list() {
     const [profile, items, decisions, changes] = await Promise.all([
@@ -159,6 +161,7 @@ export class OpportunityService {
       if(event) event={...event,requirementAnalysis:{status:'ok',cache:detail.cache,fetchedAt:detail.fetchedAt}};
       return { item, event, checked:true, requirementChanged:Boolean(delta?.changed) };
     } catch(error) {
+      if(isSamBudgetError(error))throw error;
       const event=metadataEvent ? {...metadataEvent,requirementAnalysis:{status:'error',error:String(error.message || error).slice(0,300)}} : null;
       return { item:current, event, checked:true, requirementChanged:false, error:String(error.message || error) };
     }
@@ -172,23 +175,44 @@ export class OpportunityService {
     return {...refreshed,event};
   }
 
-  async sync() {
+  async sync({source='manual'}={}) {
     const key=this.store.dir || (this.store.db ? this.store.db : this.store);
     let tenants=syncing.get(key);if(!tenants){tenants=new Map();syncing.set(key,tenants);}
     const tenant=this.store.tenantId||'local';
     if(tenants.has(tenant))return tenants.get(tenant);
-    const promise=this.#sync();tenants.set(tenant,promise);
+    const work=()=>this.#sync({source}).catch(async error=>{
+      if(isSamBudgetError(error)){error.retryAt ||= new Date(this.now()+60000).toISOString();const saved=await this.store.getDiscovery?.();await this.store.saveDiscovery?.({...saved,refreshUnavailable:{code:error.code,retryAt:error.retryAt}});}
+      throw error;
+    });
+    const promise=this.provider.withRequestContext?this.provider.withRequestContext({source},work):work();tenants.set(tenant,promise);
     try{return await promise;}finally{tenants.delete(tenant);if(!tenants.size)syncing.delete(key);}
   }
   async discoveryStatus() {
     const profile=await this.store.getProfile(),plan=planDiscovery(profile);
     const saved=await this.store.getDiscovery?.();
-    return {configured:plan.configured,mode:plan.mode,summary:saved?.summary||null,profileChanged:Boolean(saved&&saved.profileFingerprint!==profileFingerprint(profile))};
+    const {fresh,freshUntil}=this.#freshness(saved,profile);
+    let unavailable=!fresh&&saved?.refreshUnavailable&&(saved.refreshUnavailable.retryAt===null||Date.parse(saved.refreshUnavailable.retryAt)>this.now())?saved.refreshUnavailable:null;
+    if(this.provider.budget)try{
+      const budget=await this.provider.budget.status();
+      if(!fresh&&budget.limit!==null&&budget.unreserved===0)unavailable=budget.remaining===0?{code:'discovery_global_budget_exhausted',retryAt:budget.resetAt}:{code:'discovery_budget_reserved',retryAt:new Date(this.now()+60000).toISOString()};
+    }catch(error){if(!isSamBudgetError(error))throw error;unavailable={code:error.code,retryAt:null};}
+    return {configured:plan.configured,mode:plan.mode,summary:saved?.summary||null,profileChanged:Boolean(saved?.summary&&saved.profileFingerprint!==profileFingerprint(profile)),fresh,freshUntil,refreshUnavailable:unavailable};
   }
-  async #sync() {
+  #freshness(saved,profile){
+    const searched=Date.parse(saved?.summary?.syncedAt),ttl=this.provider.freshnessMs||0;
+    const fresh=ttl>0&&saved?.profileFingerprint===profileFingerprint(profile)&&this.now()>=searched&&this.now()<searched+ttl;
+    return {fresh:Boolean(fresh),freshUntil:Number.isFinite(searched)&&ttl>0?new Date(searched+ttl).toISOString():null};
+  }
+  async #sync({source}) {
     const syncedAt = new Date().toISOString();
     const profile=await this.store.getProfile();
     if(!planDiscovery(profile).configured)throw discoveryError('discovery_profile_required',409);
+    const saved=await this.store.getDiscovery?.();
+    if(source==='manual'&&this.#freshness(saved,profile).fresh)return {count:(await this.store.getOpportunities()).length,syncedAt:saved.summary.syncedAt,discovery:saved.summary,reused:true};
+    if(this.provider.budget){const budget=await this.provider.budget.status();if(budget.limit!==null&&budget.remaining===0){const error=discoveryError('discovery_global_budget_exhausted');error.retryAt=budget.resetAt;throw error;}}
+    if(saved?.refreshUnavailable&&(saved.refreshUnavailable.retryAt===null||Date.parse(saved.refreshUnavailable.retryAt)>this.now())){
+      const error=discoveryError(saved.refreshUnavailable.code);error.retryAt=saved.refreshUnavailable.retryAt;throw error;
+    }
     const discovery=this.provider.discover?await this.provider.discover(profile):null;
     const incoming=discovery?discovery.items:await this.provider(profile);
     if(profileFingerprint(profile)!==profileFingerprint(await this.store.getProfile()))throw discoveryError('discovery_profile_changed',409);
@@ -200,6 +224,7 @@ export class OpportunityService {
     const byId = new Map(cleanExisting.map(item => [String(item.id), item]));
     const seen = new Set();
     const items = [];
+    const pendingChanges=[];
     let materialChanges = 0;
     let requirementChanges = 0;
     let requirementChecks = 0;
@@ -218,7 +243,7 @@ export class OpportunityService {
         current=result.item;
         if(result.checked) requirementChecks++;
         if(result.requirementChanged) requirementChanges++;
-        if(result.event){ await this.store.appendOpportunityChange(id,result.event); materialChanges++; }
+        if(result.event){ pendingChanges.push([id,result.event]); materialChanges++; }
       }
       items.push(current);
     }
@@ -238,6 +263,7 @@ export class OpportunityService {
           refreshed=result?.item || null;
           watchMeta={cache:result?.cache || 'unknown',fetchedAt:result?.fetchedAt || null,stale:result?.cache==='stale-fallback'};
         } catch (error) {
+          if(isSamBudgetError(error))throw error;
           watchMeta={error:String(error.message || error).slice(0,300)};
         }
       }
@@ -248,7 +274,7 @@ export class OpportunityService {
           current=result.item;
           if(result.checked) requirementChecks++;
           if(result.requirementChanged) requirementChanges++;
-          if(result.event){ await this.store.appendOpportunityChange(id,result.event); materialChanges++; }
+          if(result.event){ pendingChanges.push([id,result.event]); materialChanges++; }
         }
         items.push(current);
       } else {
@@ -260,8 +286,9 @@ export class OpportunityService {
     const latestDecisions=await this.store.getDecisions?.()||decisions;
     const retainedIds=new Set(items.map(x=>String(x.id)));
     for(const prior of await this.store.getOpportunities())if(!retainedIds.has(String(prior.id))&&tracked(latestDecisions[prior.id]))items.push({...prior,feedStatus:'tracked-retained'});
+    for(const [id,event] of pendingChanges)await this.store.appendOpportunityChange(id,event);
     await this.store.saveOpportunities(items);
-    if(discovery){discovery.summary.retained=items.length;await this.store.saveDiscovery?.({summary:discovery.summary,profileFingerprint:profileFingerprint(profile)});}
+    if(discovery){discovery.summary.retained=items.length;discovery.summary.syncedAt=new Date(this.now()).toISOString();await this.store.saveDiscovery?.({summary:discovery.summary,profileFingerprint:profileFingerprint(profile)});}
     return { count:items.length, syncedAt, materialChanges, requirementChanges, requirementChecks, watchRefreshes, trackedRetained, ...(discovery?{discovery:discovery.summary}:{}) };
   }
   async enrich(id) {

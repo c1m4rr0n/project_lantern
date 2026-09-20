@@ -301,7 +301,7 @@ async function handleRequest(req, res) {
       try { await requireActive(); return json(res, 200, await tenant.service.sync()); }
       catch(error){
         if(error instanceof BillingGateError)return json(res,error.status,{error:error.code,message:error.message});
-        if(String(error.code||'').startsWith('discovery_'))return json(res,error.status||503,{error:error.code});
+        if(String(error.code||'').startsWith('discovery_'))return json(res,error.status||503,{error:error.code,...(error.retryAt?{retryAt:error.retryAt}:{})});
         throw error;
       }
     }

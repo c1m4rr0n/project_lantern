@@ -18,6 +18,7 @@ try{
   assert.equal((await req('/api/sync',{method:'POST',cookie:a})).status,409);
   assert.equal((await req('/api/profile',{method:'POST',cookie:a,payload:{name:'Discovery QA',naics:['541512'],capabilities:['cloud'],setAsides:[],regions:[],negativeKeywords:[],hardBlockers:[]}})).status,200);
   const discovery=await req('/api/sync',{method:'POST',cookie:a});assert.equal(discovery.status,200);assert.ok(discovery.data.discovery.evaluated>0);
+  const reused=await req('/api/sync',{method:'POST',cookie:a,payload:{force:true}});assert.equal(reused.status,200);assert.equal(reused.data.reused,true);assert.deepEqual(reused.data.discovery,discovery.data.discovery);
   assert.equal((await req('/api/discovery',{cookie:b})).data.summary,null);
   assert.equal((await req('/api/discovery',{cookie:b})).data.configured,false);
   assert.equal((await req('/api/discovery',{cookie:a})).data.summary.evaluated,discovery.data.discovery.evaluated);

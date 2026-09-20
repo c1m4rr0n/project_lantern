@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {discoverOpportunities,discoveryConfig,planDiscovery,discoveryError} from '../src/domain/discovery.js';
+import {discoverOpportunities,discoveryConfig,planDiscovery,discoveryError,capabilityTerms} from '../src/domain/discovery.js';
 import {scoreOpportunity} from '../src/domain/scoring.js';
 import {discoveryMessage,discoveryFailure} from '../public/discovery-model.js';
 const now=new Date('2026-09-20T12:00:00Z');
@@ -21,7 +21,7 @@ test('planner preserves NAICS priority, deduplicates inputs and retains unrestri
 });
 test('capabilities-only planner uses at most three significant title terms, never a generic query',()=>{
   const p=planDiscovery({capabilities:['Cloud cloud support and cybersecurity engineering testing']});
-  assert.equal(p.mode,'capabilities');assert.deepEqual(p.queries.map(x=>x.title),['cloud','cybersecurity','engineering']);
+  assert.equal(p.mode,'capabilities');assert.deepEqual(p.queries.map(x=>x.title),['cloud cybersecurity engineering testing']);
 });
 test('empty and unusable profiles reject discovery without provider calls',async()=>{
   for(const p of [{},{name:'Only name'},{capabilities:['services and support']}])await assert.rejects(discoverOpportunities({profile:p,page:()=>assert.fail('called')}),{code:'discovery_profile_required'});
@@ -89,7 +89,7 @@ test('customer telemetry distinguishes incomplete, stale, empty and provider err
 });
 test('capability-only discovery executes bounded title queries and locally scores results',async()=>{
   const calls=[];const result=await discoverOpportunities({profile:{capabilities:['cloud migration']},now,page:fixture([item(1)],calls)});
-  assert.equal(result.summary.mode,'capabilities');assert.equal(calls.length,8);assert.ok(calls.every(x=>x.query.title&&!x.query.ncode));assert.equal(result.summary.evaluated,1);
+  assert.equal(result.summary.mode,'capabilities');assert.equal(calls.length,4);assert.ok(calls.every(x=>x.query.title==='cloud migration'&&!x.query.ncode));assert.equal(result.summary.evaluated,1);
 });
 for(const stop of [90,180,365])test(`adaptive expansion stops at ${stop} days when quality is reached`,async()=>{
   const calls=[],horizons=[30,90,180,365];
@@ -100,4 +100,9 @@ for(const stop of [90,180,365])test(`adaptive expansion stops at ${stop} days wh
 test('elapsed-time cap stops further pages and marks partial coverage',async()=>{
   let time=0;const result=await discoverOpportunities({profile,now,clock:()=>time,config:config({maxElapsedMs:1000}),page:async()=>{time=1001;return{items:[item(1)],totalRecords:1000};}});
   assert.equal(result.summary.pages,1);assert.equal(result.summary.stopReason,'time_budget');
+});
+test('generic IT services cannot trigger discovery; meaningful normalized phrases are preferred',()=>{
+  assert.deepEqual(capabilityTerms(['IT services','Information technology consulting']),[]);
+  assert.equal(planDiscovery({capabilities:['IT services']}).configured,false);
+  assert.deepEqual(capabilityTerms(['  Cloud   SECURITY Consulting ','cloud-security services','SECURITY cloud','bridge inspection','cyber incident response','extra capability']),['cloud security','bridge inspection','cyber incident response']);
 });

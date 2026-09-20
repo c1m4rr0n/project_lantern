@@ -34,11 +34,12 @@ async function load(){
   $('#changedCount').textContent=items.filter(x=>x.changeWatch?.unreadCount>0).length;
   $('#provider').textContent=health.provider==='sam'?'SAM.gov opportunities':'Sample opportunities';
   $('#pursuitStatus').textContent=state.configured?discoveryMessage(state):'';
-  $('#sync').disabled=!state.configured;$('#sync').textContent=s?'Refresh opportunities':'Find opportunities';
+  $('#lastSearched').textContent=s?.syncedAt?'Last searched: '+new Date(s.syncedAt).toLocaleString():'Not searched yet';
+  $('#sync').disabled=!state.configured||Boolean(state.refreshUnavailable);$('#sync').textContent=s?'Refresh opportunities':'Find opportunities';
   const keyNotice=$('#keyNotice');if(keyNotice&&health.samKeyDaysRemaining!==null&&health.samKeyDaysRemaining<=14)keyNotice.textContent=`SAM.gov API credential expires in ${health.samKeyDaysRemaining} day(s).`;
   renderList();if(items.length)await show(items.some(x=>x.id===selected)?selected:items[0].id);
   else{$('#detail').innerHTML='<div class="empty"><h2>No opportunities to review yet</h2><p>Find opportunities with your company profile, or adjust your criteria and try again.</p></div>';}
 }
 document.querySelectorAll('.filter').forEach(b=>b.onclick=()=>{document.querySelectorAll('.filter').forEach(x=>x.classList.remove('active'));b.classList.add('active');minScore=Number(b.dataset.min);renderList();});
-$('#sync').onclick=async()=>{const btn=$('#sync');btn.disabled=true;btn.textContent='Finding opportunities…';$('#pursuitStatus').textContent='Searching SAM.gov and evaluating opportunities against your profile. This may take a moment.';try{await api('/api/sync',{method:'POST'});await load();}catch(e){$('#pursuitStatus').textContent=discoveryFailure(e)||humanError(e)}finally{btn.disabled=!discoveryState.configured;btn.textContent=discoveryState.summary?'Refresh opportunities':'Find opportunities';}};
+$('#sync').onclick=async()=>{const btn=$('#sync');btn.disabled=true;btn.textContent='Finding opportunities…';$('#pursuitStatus').textContent=discoveryState.fresh?'Loading your saved search…':'Searching SAM.gov and evaluating opportunities against your profile. This may take a moment.';try{await api('/api/sync',{method:'POST'});await load();}catch(e){try{discoveryState=await api('/api/discovery');}catch{}$('#pursuitStatus').textContent=discoveryState.refreshUnavailable?discoveryMessage(discoveryState):discoveryFailure(e)||humanError(e)}finally{btn.disabled=!discoveryState.configured||Boolean(discoveryState.refreshUnavailable);btn.textContent=discoveryState.summary?'Refresh opportunities':'Find opportunities';}};
 load().catch(e=>{$('#detail').innerHTML=`<div class="empty"><h2>Could not load Pursuit Watch</h2><p>${esc(humanError(e))}</p></div>`});

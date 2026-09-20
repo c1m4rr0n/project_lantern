@@ -5,6 +5,7 @@
   "type": "module",
   "description": "ExcluSignal: federal vendor exclusion monitoring with auditable evidence and procurement intelligence.",
   "scripts": {
+    "sam:usage": "node --env-file-if-exists=.env scripts/sam-usage.js",
     "analytics:summary": "node --env-file-if-exists=.env scripts/analytics-summary.js",
     "doctor:stripe": "node --env-file-if-exists=.env scripts/doctor-stripe.js",
     "start": "node --env-file-if-exists=.env server.js",

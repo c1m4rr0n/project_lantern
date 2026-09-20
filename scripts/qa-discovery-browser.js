@@ -25,15 +25,16 @@ try{
   assert.equal((await (await context.request.get(base+'/api/discovery')).json()).configured,false);
   const profile={name:'Example Federal Cloud Services',naics:['541512'],capabilities:['cloud'],regions:[],setAsides:[],negativeKeywords:[],hardBlockers:[]};
   assert.equal((await context.request.post(base+'/api/profile',{data:profile})).status(),200);
-  const sync=await context.request.post(base+'/api/sync');assert.equal(sync.status(),200);assert.ok((await sync.json()).discovery);
+  const sync=await context.request.post(base+'/api/sync');assert.equal(sync.status(),200);const initial=(await sync.json()).discovery;assert.ok(initial);
+  const reused=await (await context.request.post(base+'/api/sync',{data:{force:true}})).json();assert.equal(reused.reused,true);assert.deepEqual(reused.discovery,initial);
   const data=await (await context.request.get(base+'/api/opportunities')).json();assert.ok(data.length);
   const summary={rawCandidates:2000,uniqueCandidates:1842,evaluated:1842,relevant:216,strong:48,retained:250,apiRequests:6,pages:6,searchHorizonDays:90,syncedAt:'2026-09-20T12:00:00Z',stale:false,stopReason:'quality_target'};
-  for(const width of [360,390,430,768,980,1024,1100,1440])for(const state of ['unconfigured','naics','capabilities','populated','empty','error','stale']){
+  for(const width of [360,390,430,768,980,1024,1100,1440])for(const state of ['unconfigured','naics','capabilities','populated','empty','error','stale','fresh','budget']){
     await page.setViewportSize({width,height:1000});
     const configured=state!=='unconfigured',p=state==='unconfigured'?{}:state==='capabilities'?{...profile,naics:[]}:profile;
     const s=['unconfigured','naics','capabilities'].includes(state)?null:state==='empty'?{...summary,evaluated:0,relevant:0,strong:0,retained:0}: {...summary,stale:state==='stale'};
     await page.route('**/api/profile',route=>route.fulfill({json:p}));
-    await page.route('**/api/discovery',route=>route.fulfill({json:{configured,mode:state==='capabilities'?'capabilities':configured?'naics':'unconfigured',summary:s}}));
+    await page.route('**/api/discovery',route=>route.fulfill({json:{configured,mode:state==='capabilities'?'capabilities':configured?'naics':'unconfigured',summary:s,fresh:state==='fresh',refreshUnavailable:state==='budget'?{code:'discovery_global_budget_exhausted',retryAt:'2099-01-01T00:00:00Z'}:null}}));
     await page.route('**/api/opportunities',route=>route.fulfill({json:['unconfigured','empty'].includes(state)?[]:data}));
     await page.goto(base+'/app.html');await page.waitForFunction(()=>document.querySelector('[data-account-email]')?.textContent.includes('@'));
     if(!configured){assert.ok(await page.locator('#sync').isDisabled());assert.match(await page.locator('#profileLine').innerText(),/Set up your company profile/);}
@@ -41,6 +42,9 @@ try{
     if(state==='stale')assert.match(await page.locator('#pursuitStatus').innerText(),/cached/);
     if(state==='empty')assert.match(await page.locator('#pursuitStatus').innerText(),/No profile matches/);
     if(state==='populated')assert.equal(await page.locator('#scannedCount').innerText(),'1,842');
+    if(s)assert.match(await page.locator('#lastSearched').innerText(),/^Last searched:/);
+    if(state==='fresh')assert.match(await page.locator('#pursuitStatus').innerText(),/without another SAM.gov request/);
+    if(state==='budget'){assert.ok(await page.locator('#sync').isDisabled());assert.match(await page.locator('#pursuitStatus').innerText(),/temporarily unavailable/);assert.equal(await page.locator('#scannedCount').innerText(),'1,842');}
     if(state==='error'){
       await page.route('**/api/sync',route=>route.fulfill({status:503,json:{error:'discovery_upstream_unavailable'}}));
       await page.locator('#sync').click();await page.getByText(/existing opportunities are unchanged/).waitFor();assert.ok(await page.locator('.card[data-id]').count());await page.unroute('**/api/sync');

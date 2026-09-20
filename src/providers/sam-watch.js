@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { normalizeSamOpportunity } from './sam.js';
+import {isSamBudgetError} from '../ops/sam-request-budget.js';
 
 const SAFE_ID = /^[a-zA-Z0-9._-]{1,160}$/;
 
@@ -80,6 +81,7 @@ export class SamWatchCache {
         await writeCache(path,result);
         return {...result,cache:cached?'refresh':'miss'};
       } catch(error) {
+        if(isSamBudgetError(error))throw error;
         if(cached && age <= this.maxStaleMs) return {...cached,cache:'stale-fallback',upstreamError:error.message};
         throw error;
       } finally { this.inflight.delete(id); }
