@@ -8,13 +8,18 @@
   <title>ExcluSignal — Pursuit Watch</title>
   <link rel="icon" href="/favicon.svg?v=rc20" type="image/svg+xml" />
   <link rel="stylesheet" href="/styles.css?v=rc20" />
-<link rel="stylesheet" href="/polish.css?v=rc20"></head>
+<link rel="stylesheet" href="/polish.css?v=rc20"><link rel="stylesheet" href="/discovery.css?v=rc21"></head>
 <body>
   <header data-app-shell><a href="/vendors.html">ExcluSignal</a></header>
   <main class="appMain">
-    <section class="hero compactHero pursuitHero"><div class="pursuitHeading"><div class="heroCopy"><p class="eyebrow">PURSUIT CHANGE INTELLIGENCE</p><h1>Know what changed before it costs you the bid.</h1><p id="profileLine">Loading company profile…</p></div><button id="sync" class="secondaryButton" type="button">Sync opportunities</button></div><p id="pursuitStatus" role="status"></p><div class="stats statsPanel"><div><strong id="strongCount">—</strong><span>strong matches</span></div><div><strong id="pursueCount">—</strong><span>marked pursue</span></div><div><strong id="changedCount">—</strong><span>changed pursuits</span></div><div><strong id="scannedCount">—</strong><span>opportunities scanned</span></div><div><strong id="provider">—</strong><span>data provider</span></div></div><div id="keyNotice" class="keyNotice"></div></section>
+    <section class="hero compactHero pursuitHero">
+      <div class="pursuitHeading"><div class="heroCopy"><p class="eyebrow">PROFILE-AWARE DISCOVERY · CHANGE WATCH</p><h1>Find opportunities that fit. Know what changes.</h1><p id="profileLine">Loading company profile…</p></div><button id="sync" class="secondaryButton" type="button" disabled>Find opportunities</button></div>
+      <p id="pursuitStatus" role="status"></p>
+      <div class="stats statsPanel"><div><strong id="scannedCount">—</strong><span>opportunities evaluated</span></div><div><strong id="relevantCount">—</strong><span>profile matches</span></div><div><strong id="strongCount">—</strong><span>strong matches</span></div><div><strong id="coverage">—</strong><span>search coverage attempted</span></div></div>
+      <p class="meta"><span id="provider">—</span> · <span id="pursueCount">0</span> marked pursue · <span id="changedCount">0</span> changed pursuits</p><div id="keyNotice" class="keyNotice"></div>
+    </section>
     <section class="layout workspaceLayout"><aside class="surface feedPanel"><div class="panelTitle"><div><p class="eyebrow">LIVE FEED</p><h2>Opportunity feed</h2></div><span class="panelHint">Fit score</span></div><div class="filters"><button class="filter active" data-min="0">All</button><button class="filter" data-min="55">Review</button><button class="filter" data-min="75">Strong</button></div><div id="list" class="list"></div></aside><article id="detail" class="detail"><div class="empty"><div class="emptyIcon">↗</div><h2>Select an opportunity</h2><p>ExcluSignal shows why it fits, watches tracked pursuits, compares requirements against the previous version and surfaces blockers with source evidence.</p></div></article></section>
   </main>
-  <script type="module" src="/app.js?v=rc20"></script>
+  <script type="module" src="/app.js?v=rc21"></script>
 </body>
 </html>

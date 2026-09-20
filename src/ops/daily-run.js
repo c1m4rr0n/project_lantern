@@ -4,10 +4,11 @@ import { buildDigest } from '../services/digest.js';
 import { buildVendorDigest } from '../services/vendor-digest.js';
 import { OpportunityService } from '../services/opportunities.js';
 import { VendorWatchService } from '../services/vendors.js';
+import {planDiscovery} from '../domain/discovery.js';
 
 function dayKey(now) { return now.toISOString().slice(0,10); }
 function configured(profile) {
-  return Boolean(profile?.name || profile?.naics?.length || profile?.capabilities?.length || profile?.setAsides?.length || profile?.regions?.length);
+  return planDiscovery(profile).configured;
 }
 async function writeOnce(path, value) {
   try { await writeFile(path, JSON.stringify(value, null, 2), { flag:'wx', mode:0o600 }); return true; }
@@ -36,15 +37,17 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
 
   const opportunityEligible=eligible.filter(x=>x.opportunityReady);
   const vendorEligible=eligible.filter(x=>x.vendorReady);
-  const sharedItems = opportunityEligible.length ? await provider() : [];
+  const sharedItems = opportunityEligible.length && !provider.discover ? await provider() : [];
+  let opportunitiesFetched=sharedItems.length;
   const exclusionSnapshot = vendorEligible.length && exclusionProvider ? await exclusionProvider.getSnapshot() : null;
   await mkdir(outboxRoot, { recursive:true });
 
   for (const {user,store,profile,opportunityReady,vendorReady} of eligible) {
     let items=[];
     if(opportunityReady){
-      const service = new OpportunityService({ store, provider:async()=>sharedItems, watchProvider, detailProvider, excludeDemoSeed:providerName !== 'mock' });
-      await service.sync();
+      const service = new OpportunityService({ store, provider:provider.discover?provider:async()=>sharedItems, watchProvider, detailProvider, excludeDemoSeed:providerName !== 'mock' });
+      const sync=await service.sync();
+      if(provider.discover)opportunitiesFetched+=sync.count;
       items = await service.list();
     }
     let vendorDigest=buildVendorDigest((await store.getVendors?.()||[]).filter(v=>!v.archivedAt));
@@ -79,7 +82,7 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
     eligibleTenants:eligible.length,
     opportunityEligibleTenants:opportunityEligible.length,
     vendorEligibleTenants:vendorEligible.length,
-    opportunitiesFetched:sharedItems.length,
+    opportunitiesFetched,
     exclusionsSnapshotFetched:Boolean(exclusionSnapshot),
     queued:results.filter(x=>x.status==='queued').length,
     alreadyQueued:results.filter(x=>x.status==='already-queued').length,

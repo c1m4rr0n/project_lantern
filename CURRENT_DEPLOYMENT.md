@@ -1,15 +1,15 @@
-# Current production deployment — operator confirmed 2026-09-19
+# Current production deployment — operator-reported RC20, RC21 work 2026-09-20
 
-- Production: 1.0.0-rc.19, https://exclusignal.com
+- Production: 1.0.0-rc.20, https://exclusignal.com (operator report)
 - Repository: c1m4rr0n/project_lantern
-- Production source commit: 2c09f7df4601048dd602e77e486e85dd27943d5d
-- Annotated production tag: v1.0.0-rc.19-production
+- Production/main commit: afdff08fa87012fb2d35167bc9a06d7b6355021e
+- Historical RC19 production tag: v1.0.0-rc.19-production at 2c09f7df4601048dd602e77e486e85dd27943d5d; not moved
 - Mechanism: direct GitHub main source deployment to Railway, Node 22; the RC16 tarball bootstrap is historical, not the current deployment mechanism.
 - One writable Railway instance; persistent /data; SQLite and in-process scheduler. Port 8787; healthcheck /api/ready.
 
-The operator confirmed the successful source promotion. Read-only Railway configuration also reports the repository, main branch and exact commit above. This pipeline-hardening task did not perform a deployment or revalidate every authenticated production flow. Railway's configuration response still includes legacy image/builder fields; do not alter those or bootstrap-related variables as part of documentation cleanup. Operator-confirmed watch patterns and current branch protection are recorded in docs/PRODUCTION_PIPELINE.md.
+The operator reports healthy RC20 production. RC21 verified origin/main at the exact SHA above but did not inspect or modify Railway. Earlier read-only Railway inspection concerned RC19, not this runtime. Do not alter legacy builder/bootstrap variables as part of documentation cleanup. Operator-confirmed watch patterns and branch protection are recorded in docs/PRODUCTION_PIPELINE.md.
 
-Documentation-only main commit `035f19448a59c52e6406b17508f03e7976c23ea6` did not trigger a deployment, as confirmed by the operator. Watch Paths were applied externally without a deployment. RC20 is being prepared on a separate branch; this task has not modified Railway, variables, production data or Stripe Live. Production smoke testing remains paused; local mock QA is not production SAM validation.
+Documentation-only main commit `035f19448a59c52e6406b17508f03e7976c23ea6` did not trigger a deployment, as confirmed by the operator. Watch Paths were applied externally without a deployment. RC21 is being prepared on a separate branch; this task has not modified Railway, variables, production data or Stripe Live. Production smoke testing remains paused; local mock QA is not production SAM validation. No new variable is required for RC21; optional tuning is documented in docs/OPPORTUNITY_DISCOVERY.md. Promotion requires an approved PR merge and operator runtime validation; no automatic merge is authorized.
 
 ## Rollback reference
 

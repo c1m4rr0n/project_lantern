@@ -14,6 +14,8 @@ Do not bypass CI or weaken these settings to merge. A maintainer with repository
 
 ## Production identity
 
+RC21 task update (2026-09-20): the operator reports healthy RC20 production/main at `afdff08fa87012fb2d35167bc9a06d7b6355021e`. That exact origin/main SHA was verified before RC21 branching. No Railway inspection or configuration change was performed for RC21. The RC19 tag and dated inspection below are historical evidence, not a claim of current RC19 runtime. The protected-branch workflow still applies; RC21 must not be automatically merged.
+
 Annotated tag `v1.0.0-rc.19-production` points to `2c09f7df4601048dd602e77e486e85dd27943d5d`. No equivalent remote tag existed before creation. The tag records operator-confirmed production, not a new deployment. Never move it to a later documentation commit.
 
 ## Railway inspection and operator-confirmed watch patterns

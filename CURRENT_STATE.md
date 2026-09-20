@@ -1,8 +1,10 @@
 # ExcluSignal — current source state
 
-Source version: 1.0.0-rc.20. `release.json` and `package.json` are authoritative for source version. Production runs RC19 directly from GitHub main on Railway at `2c09f7df4601048dd602e77e486e85dd27943d5d`, confirmed by the operator on 2026-09-19. See CURRENT_DEPLOYMENT.md for the production tag and evidence boundaries.
+Source version: 1.0.0-rc.21. `release.json` and `package.json` are authoritative for source version. The operator reports healthy RC20 production/main at `afdff08fa87012fb2d35167bc9a06d7b6355021e`; this task verified that origin/main matched that exact commit before branching. No Railway operation or production smoke test was performed. See CURRENT_DEPLOYMENT.md for evidence boundaries.
 
-RC20 adds a shared accessible desktop/mobile shell, consistent verified-session entry to Vendor Watch, password confirmation/show-hide, contextual capacity feedback, confirmed CSV review, live vendor updates, workspace settings and redesigned print evidence. See docs/RC20_POLISH_AUDIT.md and reports/RC20-VALIDATION.md. RC20 is a PR-only candidate; it has NOT been deployed. Matching, tenancy, billing, scheduling and evidence retention are unchanged.
+RC21 is a PR-only candidate, NOT deployed: deterministic profile-aware SAM opportunity discovery, page-index pagination, adaptive horizons, bounded requests/retention, exact-query raw cache, tenant-specific summaries and customer-facing discovery UX. See docs/OPPORTUNITY_DISCOVERY.md and reports/RC21-VALIDATION.md. Existing opportunity scoring, Change Watch, requirement extraction, vendor screening, billing and scheduler timing/idempotency remain unchanged.
+
+RC20 adds a shared accessible desktop/mobile shell, consistent verified-session entry to Vendor Watch, password confirmation/show-hide, contextual capacity feedback, confirmed CSV review, live vendor updates, workspace settings and redesigned print evidence. See docs/RC20_POLISH_AUDIT.md and reports/RC20-VALIDATION.md for dated implementation evidence.
 
 RC19 adds Scale public naming (internal team key retained), internal milestone analytics/summary CLI, password-confirmed account export and deletion with billing closure checks, crash-recoverable cleanup, durable Stripe replay protection, sandbox-only reconciliation, draft legal materials and a disabled-by-default public indexing switch. Multi-user membership remains future work.
 

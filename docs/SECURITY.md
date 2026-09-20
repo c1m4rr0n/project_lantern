@@ -27,6 +27,8 @@ Verified sessions entering `/` or `/auth.html` without verify/reset parameters a
 
 ## Retention and residual boundaries
 
+RC21 discovery requires an authenticated, active tenant and usable Company criteria before SAM access. Every discovery is bounded by page/request/raw-record/time budgets. Public raw page caching is keyed by the exact public query (no credentials); personalized scores and summaries stay in tenant storage. `GET /api/discovery` cannot select another tenant. Structured logs contain only counters/status/timing, not profiles or response bodies. Provider failure preserves prior discovery. Retention prunes old untracked discovery only; tracked evidence/history limits remain unchanged. See OPPORTUNITY_DISCOVERY.md for cache freshness, retries and explicit retention rules.
+
 Audit retention defaults to 90 days (AUDIT_RETENTION_DAYS) and detailed analytics to 90 days (ANALYTICS_RETENTION_DAYS), pruned on new events. Analytics milestone timestamps persist until account deletion. Screening history retains 730 entries per vendor; opportunity changes retain 50 per opportunity. These are engineering limits, not approved legal policies.
 
 Deletion removes logical current data; SQLite free pages/WAL, backups and external providers are not promised immediately erased. Private encrypted backup storage, independent retention and restore-time deletion reapplication are required. Opaque deletion receipts must outlive backups capable of resurrecting the account. Set final retention with human/legal review.

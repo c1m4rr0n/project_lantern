@@ -87,7 +87,7 @@ For every behavior change:
 
 ## Current migration priority
 
-Source restoration and RC17–RC19 commercial hardening are complete. Production runs RC19 directly from GitHub main; RC20 is a separate professional-polish candidate, not deployed. The historical restoration procedure below is retained for provenance, not an instruction to repeat reconstruction. Use release.json for source identity and CURRENT_DEPLOYMENT.md for effective production.
+Source restoration and RC17–RC20 are complete. The operator reports RC20 production directly from GitHub main; RC21 profile-aware discovery is a separate candidate, not deployed. The historical restoration procedure below is retained for provenance, not an instruction to repeat reconstruction. Use release.json for source identity and CURRENT_DEPLOYMENT.md for effective production.
 
 The public GitHub repository historically became a tarball-only deployment repository after the original source history stopped being pushed. The immediate priority is to make tracked source code the source of truth again **without changing production behavior**.
 

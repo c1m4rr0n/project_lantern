@@ -1,0 +1,4 @@
+.pursuitHero .statsPanel{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pursuitHero .statsPanel>div:last-child{grid-column:auto}
+.pursuitHero .statsPanel>div{min-width:0;overflow-wrap:anywhere}
+@media(max-width:900px){.pursuitHero .statsPanel{grid-template-columns:repeat(2,minmax(0,1fr))}.pursuitHero .statsPanel>div:nth-child(2n){border-right:0}}

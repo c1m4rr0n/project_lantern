@@ -3,6 +3,9 @@ import { scoreOpportunity } from '../domain/scoring.js';
 import { extractRequirements } from '../domain/requirements.js';
 import { detectMaterialChanges, detectFitImpact } from '../domain/change-detection.js';
 import { detectRequirementDelta } from '../domain/requirement-delta.js';
+import {planDiscovery,profileFingerprint,discoveryError} from '../domain/discovery.js';
+
+const syncing=new Map();
 
 function normalizeRequirementText(value='') { return String(value).trim().toLowerCase().replace(/\s+/g,' '); }
 function isMachineRequirement(item={}) {
@@ -170,12 +173,28 @@ export class OpportunityService {
   }
 
   async sync() {
+    const key=this.store.dir || (this.store.db ? this.store.db : this.store);
+    let tenants=syncing.get(key);if(!tenants){tenants=new Map();syncing.set(key,tenants);}
+    const tenant=this.store.tenantId||'local';
+    if(tenants.has(tenant))return tenants.get(tenant);
+    const promise=this.#sync();tenants.set(tenant,promise);
+    try{return await promise;}finally{tenants.delete(tenant);if(!tenants.size)syncing.delete(key);}
+  }
+  async discoveryStatus() {
+    const profile=await this.store.getProfile(),plan=planDiscovery(profile);
+    const saved=await this.store.getDiscovery?.();
+    return {configured:plan.configured,mode:plan.mode,summary:saved?.summary||null,profileChanged:Boolean(saved&&saved.profileFingerprint!==profileFingerprint(profile))};
+  }
+  async #sync() {
     const syncedAt = new Date().toISOString();
-    const [incoming, existing, decisions, profile] = await Promise.all([
-      this.provider(),
+    const profile=await this.store.getProfile();
+    if(!planDiscovery(profile).configured)throw discoveryError('discovery_profile_required',409);
+    const discovery=this.provider.discover?await this.provider.discover(profile):null;
+    const incoming=discovery?discovery.items:await this.provider(profile);
+    if(profileFingerprint(profile)!==profileFingerprint(await this.store.getProfile()))throw discoveryError('discovery_profile_changed',409);
+    const [existing, decisions] = await Promise.all([
       this.store.getOpportunities(),
-      this.store.getDecisions ? this.store.getDecisions() : {},
-      this.store.getProfile()
+      this.store.getDecisions ? this.store.getDecisions() : {}
     ]);
     const cleanExisting = this.excludeDemoSeed ? existing.filter(item => !isDemoSeedOpportunity(item)) : existing;
     const byId = new Map(cleanExisting.map(item => [String(item.id), item]));
@@ -189,6 +208,7 @@ export class OpportunityService {
 
     for (const item of incoming) {
       const id=String(item.id);
+      if(seen.has(id))continue;
       seen.add(id);
       const prior=byId.get(id);
       const decision=decisions[id] || {status:'new'};
@@ -236,8 +256,13 @@ export class OpportunityService {
       }
     }
 
+    // Decisions may change while remote detail requests are in flight. Never prune a newly tracked record.
+    const latestDecisions=await this.store.getDecisions?.()||decisions;
+    const retainedIds=new Set(items.map(x=>String(x.id)));
+    for(const prior of await this.store.getOpportunities())if(!retainedIds.has(String(prior.id))&&tracked(latestDecisions[prior.id]))items.push({...prior,feedStatus:'tracked-retained'});
     await this.store.saveOpportunities(items);
-    return { count:items.length, syncedAt, materialChanges, requirementChanges, requirementChecks, watchRefreshes, trackedRetained };
+    if(discovery){discovery.summary.retained=items.length;await this.store.saveDiscovery?.({summary:discovery.summary,profileFingerprint:profileFingerprint(profile)});}
+    return { count:items.length, syncedAt, materialChanges, requirementChanges, requirementChecks, watchRefreshes, trackedRetained, ...(discovery?{discovery:discovery.summary}:{}) };
   }
   async enrich(id) {
     const current = await this.store.findOpportunity(id);

@@ -8,7 +8,7 @@ Matching remains conservative: exact UEI+CAGE, UEI or CAGE supplies stronger ide
 
 ## Secondary workflow
 
-Pursuit Watch uses optional company profile/NAICS, deterministic scoring, tracked opportunity changes and requirement candidates with source text. Explicit customer hard-blocker phrases remain auditable. No LLM is used in these critical paths.
+Pursuit Watch discovery requires usable company NAICS or capabilities (the profile remains optional for Vendor Watch). RC21 uses targeted SAM searches, bounded pagination and adaptive 30/90/180/365-day coverage. Results are locally scored; metrics distinguish evaluated records, profile matches, strong matches and attempted coverage. Capability-only profiles receive bounded title searches and a recommendation to add NAICS. Tracked opportunity changes and requirement candidates retain source evidence. Explicit customer hard-blocker phrases remain auditable. No LLM is used in these critical paths. See OPPORTUNITY_DISCOVERY.md for exact retention, freshness and safety limits.
 
 ## Commercial model
 

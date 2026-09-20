@@ -14,6 +14,13 @@ async function account(email){let r=await req('/api/auth/register',{method:'POST
 try{
   let ready=false;for(let i=0;i<80;i++){try{if((await req('/api/ready')).status===200){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}assert.ok(ready,diagnostics);
   const a=await account('commercial-a@example.test'),b=await account('commercial-b@example.test');
+  assert.equal((await req('/api/discovery')).status,401);
+  assert.equal((await req('/api/sync',{method:'POST',cookie:a})).status,409);
+  assert.equal((await req('/api/profile',{method:'POST',cookie:a,payload:{name:'Discovery QA',naics:['541512'],capabilities:['cloud'],setAsides:[],regions:[],negativeKeywords:[],hardBlockers:[]}})).status,200);
+  const discovery=await req('/api/sync',{method:'POST',cookie:a});assert.equal(discovery.status,200);assert.ok(discovery.data.discovery.evaluated>0);
+  assert.equal((await req('/api/discovery',{cookie:b})).data.summary,null);
+  assert.equal((await req('/api/discovery',{cookie:b})).data.configured,false);
+  assert.equal((await req('/api/discovery',{cookie:a})).data.summary.evaluated,discovery.data.discovery.evaluated);
   const text='legal name,uei,cage\nACME,ABCDEF123456,12345\nName only,,\nRepeated,ABCDEF123456,';
   let r=await req('/api/vendors/import/preview',{method:'POST',payload:{text},cookie:a});assert.equal(r.data.valid,2);assert.equal(r.data.duplicates,1);
   r=await req('/api/vendors/import/commit',{method:'POST',payload:{text,fingerprint:r.data.fingerprint,rows:[2,3],confirmed:true},cookie:a});assert.equal(r.status,201);const id=r.data.items[0].id;

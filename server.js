@@ -296,9 +296,14 @@ async function handleRequest(req, res) {
       catch (error) { if(error instanceof BillingGateError)return json(res,error.status,{error:error.code,message:error.message}); return json(res, 400, { error:'invalid_profile', message:error.message }); }
     }
     if (url.pathname === '/api/opportunities' && req.method === 'GET') return json(res, 200, await tenant.service.list());
+    if (url.pathname === '/api/discovery' && req.method === 'GET') return json(res,200,await tenant.service.discoveryStatus());
     if (url.pathname === '/api/sync' && req.method === 'POST') {
       try { await requireActive(); return json(res, 200, await tenant.service.sync()); }
-      catch(error){ if(error instanceof BillingGateError)return json(res,error.status,{error:error.code,message:error.message}); throw error; }
+      catch(error){
+        if(error instanceof BillingGateError)return json(res,error.status,{error:error.code,message:error.message});
+        if(String(error.code||'').startsWith('discovery_'))return json(res,error.status||503,{error:error.code});
+        throw error;
+      }
     }
     if (url.pathname === '/api/digest' && req.method === 'GET') {
       const [profile, items, vendors] = await Promise.all([tenant.store.getProfile(), tenant.service.list(), tenant.vendorService.list()]);
