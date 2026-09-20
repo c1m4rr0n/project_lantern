@@ -1,6 +1,8 @@
 # ExcluSignal — current source state
 
-Source version: 1.0.0-rc.19. `release.json` and `package.json` are authoritative for source version. Production runs RC19 directly from GitHub main on Railway at `2c09f7df4601048dd602e77e486e85dd27943d5d`, confirmed by the operator on 2026-09-19. See CURRENT_DEPLOYMENT.md for the production tag and evidence boundaries.
+Source version: 1.0.0-rc.20. `release.json` and `package.json` are authoritative for source version. Production runs RC19 directly from GitHub main on Railway at `2c09f7df4601048dd602e77e486e85dd27943d5d`, confirmed by the operator on 2026-09-19. See CURRENT_DEPLOYMENT.md for the production tag and evidence boundaries.
+
+RC20 adds a shared accessible desktop/mobile shell, consistent verified-session entry to Vendor Watch, password confirmation/show-hide, contextual capacity feedback, confirmed CSV review, live vendor updates, workspace settings and redesigned print evidence. See docs/RC20_POLISH_AUDIT.md and reports/RC20-VALIDATION.md. RC20 is a PR-only candidate; it has NOT been deployed. Matching, tenancy, billing, scheduling and evidence retention are unchanged.
 
 RC19 adds Scale public naming (internal team key retained), internal milestone analytics/summary CLI, password-confirmed account export and deletion with billing closure checks, crash-recoverable cleanup, durable Stripe replay protection, sandbox-only reconciliation, draft legal materials and a disabled-by-default public indexing switch. Multi-user membership remains future work.
 
@@ -12,4 +14,4 @@ RC17 prepares direct Docker/source deployment, Linux/Windows CI, non-secret rele
 
 Vendor Exclusion Watch remains primary. Matching/scoring/requirements are deterministic. SQLite remains one writable instance on /data; JSON storage remains supported for local testing.
 
-See docs/COMMERCIAL_OPERATIONS.md for migration/rollback and optional configuration, and docs/PRODUCTION_PIPELINE.md for main protection and pending Railway watch patterns. Source deployment is complete. Remaining external gates include independent backup restore drill, external alerts, reviewed legal/business decisions and Stripe Live approval. Historical reports and QA_HANDOFF describe their dated releases, not current production.
+See docs/COMMERCIAL_OPERATIONS.md for migration/rollback and optional configuration, and docs/PRODUCTION_PIPELINE.md for main protection and operator-confirmed Railway watch patterns. Source deployment is complete. Remaining external gates include independent backup restore drill, external alerts, reviewed legal/business decisions and Stripe Live approval. Historical reports and QA_HANDOFF describe their dated releases, not current production.

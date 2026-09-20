@@ -7,7 +7,9 @@
 - Mechanism: direct GitHub main source deployment to Railway, Node 22; the RC16 tarball bootstrap is historical, not the current deployment mechanism.
 - One writable Railway instance; persistent /data; SQLite and in-process scheduler. Port 8787; healthcheck /api/ready.
 
-The operator confirmed the successful source promotion. Read-only Railway configuration also reports the repository, main branch and exact commit above. This pipeline-hardening task did not perform a deployment or revalidate every authenticated production flow. Railway's configuration response still includes legacy image/builder fields; do not alter those or bootstrap-related variables as part of documentation cleanup. Watch-pattern preparation and current branch protection are recorded in docs/PRODUCTION_PIPELINE.md.
+The operator confirmed the successful source promotion. Read-only Railway configuration also reports the repository, main branch and exact commit above. This pipeline-hardening task did not perform a deployment or revalidate every authenticated production flow. Railway's configuration response still includes legacy image/builder fields; do not alter those or bootstrap-related variables as part of documentation cleanup. Operator-confirmed watch patterns and current branch protection are recorded in docs/PRODUCTION_PIPELINE.md.
+
+Documentation-only main commit `035f19448a59c52e6406b17508f03e7976c23ea6` did not trigger a deployment, as confirmed by the operator. Watch Paths were applied externally without a deployment. RC20 is being prepared on a separate branch; this task has not modified Railway, variables, production data or Stripe Live. Production smoke testing remains paused; local mock QA is not production SAM validation.
 
 ## Rollback reference
 

@@ -6,34 +6,15 @@
   <meta name="robots" content="noindex,nofollow" />
   <meta name="description" content="ExcluSignal: procurement opportunities matched to your company profile." />
   <title>ExcluSignal — Pursuit Watch</title>
-  <link rel="icon" href="/favicon.svg?v=rc15" type="image/svg+xml" />
-  <link rel="stylesheet" href="/styles.css?v=rc15" />
-</head>
+  <link rel="icon" href="/favicon.svg?v=rc20" type="image/svg+xml" />
+  <link rel="stylesheet" href="/styles.css?v=rc20" />
+<link rel="stylesheet" href="/polish.css?v=rc20"></head>
 <body>
-  <header class="topbar appTopbar">
-    <a class="brandLockup" href="/vendors.html" aria-label="ExcluSignal home">
-      <span class="mark">ES</span><span class="brandWords"><strong>ExcluSignal</strong><small>Federal intelligence</small></span><span class="badge">Beta</span>
-    </a>
-    <nav class="workspaceNav" aria-label="Workspace navigation">
-      <a href="/vendors.html" class="navLink">Vendor Watch</a>
-      <a href="/app.html" class="navLink isActive" aria-current="page">Pursuit Watch</a>
-      <a href="/digest.html" class="navLink">Daily Brief</a>
-      <a href="/onboarding.html" class="navLink">Company</a>
-      <a href="/pricing.html" class="navLink">Plan</a>
-    </nav>
-    <div class="headerActions">
-      <button id="sync" class="headerPrimary">Sync opportunities</button>
-      <div id="accountCluster" class="accountCluster">
-        <span id="accountAvatar" class="accountAvatar">A</span>
-        <span class="accountIdentity"><small>Signed in as</small><strong id="accountEmail">Loading…</strong></span>
-        <button id="logout" class="accountLogout">Sign out</button>
-      </div>
-    </div>
-  </header>
-  <main class="appMain">
+  <header data-app-shell><a href="/vendors.html">ExcluSignal</a></header>
+  <main class="appMain"><div class="pageActions"><button id="sync" class="primary" type="button">Sync opportunities</button><p id="pursuitStatus" role="status"></p></div>
     <section class="hero compactHero"><div class="heroCopy"><p class="eyebrow">PURSUIT CHANGE INTELLIGENCE</p><h1>Know what changed before it costs you the bid.</h1><p id="profileLine">Loading company profile…</p></div><div class="stats statsPanel"><div><strong id="strongCount">—</strong><span>strong matches</span></div><div><strong id="pursueCount">—</strong><span>marked pursue</span></div><div><strong id="changedCount">—</strong><span>changed pursuits</span></div><div><strong id="scannedCount">—</strong><span>opportunities scanned</span></div><div><strong id="provider">—</strong><span>data provider</span></div></div><div id="keyNotice" class="keyNotice"></div></section>
     <section class="layout workspaceLayout"><aside class="surface feedPanel"><div class="panelTitle"><div><p class="eyebrow">LIVE FEED</p><h2>Opportunity feed</h2></div><span class="panelHint">Fit score</span></div><div class="filters"><button class="filter active" data-min="0">All</button><button class="filter" data-min="55">Review</button><button class="filter" data-min="75">Strong</button></div><div id="list" class="list"></div></aside><article id="detail" class="detail"><div class="empty"><div class="emptyIcon">↗</div><h2>Select an opportunity</h2><p>ExcluSignal shows why it fits, watches tracked pursuits, compares requirements against the previous version and surfaces blockers with source evidence.</p></div></article></section>
   </main>
-  <script type="module" src="/app.js?v=rc15"></script>
+  <script type="module" src="/app.js?v=rc20"></script>
 </body>
 </html>

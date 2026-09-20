@@ -8,6 +8,8 @@ Source version is in `release.json`, checked against `package.json` by the relea
 
 RC17: direct-source Docker readiness, release identity, CI, structured operational errors, durable audit and optional S3-compatible backup.
 RC18: confirmed CSV import, non-destructive vendor archive/restore, CSV and print-friendly evidence reports, optional support contact.
+RC20 (candidate, not deployed): shared responsive workspace navigation, secure-access form polish, contextual capacity, live watchlist updates, CSV review, settings and print evidence. [Copy audit](docs/RC20_POLISH_AUDIT.md) and [validation](reports/RC20-VALIDATION.md).
+
 RC19: Scale naming, private first-party analytics, password-confirmed account export/deletion, subscription lifecycle/reconciliation coverage and draft launch/legal materials.
 
 ## Local development and validation
@@ -23,9 +25,11 @@ Use the variables in `.env.example` for local mock operation; never commit real 
 
 The gate runs syntax checks for all source/UI/script/test JavaScript, the automated test suite, auth/vendor/billing/change/requirement/scheduler/readiness/lifecycle/commercial HTTP smokes, release-version consistency and secret scan.
 
+Optional browser QA: `node scripts/qa-polish-browser.js` uses a workstation-provided Playwright installation (`PLAYWRIGHT_MODULE` if outside normal resolution) and Chrome. It starts its own loopback-only mock server with a temporary data root; it never accepts a production URL. `RC20_QA_OUTPUT` selects an external screenshot directory. No runtime/browser dependency was added to the package. See the validation report for coverage and human device/assistive-technology checks.
+
 ## CI status
 
-GitHub Actions runs Node 22 on Linux and Windows for pull requests to main and pushes to main, with Docker build/readiness on Linux. Main requires PRs, an up-to-date branch and both checks (including for admins); force pushes and deletion are blocked. Normal merge commits remain allowed. See [Production pipeline](docs/PRODUCTION_PIPELINE.md) for exact settings and pending deployment watch patterns.
+GitHub Actions runs Node 22 on Linux and Windows for pull requests to main and pushes to main, with Docker build/readiness on Linux. Main requires PRs, an up-to-date branch and both checks (including for admins); force pushes and deletion are blocked. Normal merge commits remain allowed. See [Production pipeline](docs/PRODUCTION_PIPELINE.md) for exact settings and operator-confirmed deployment watch patterns.
 
 ## Account and plans
 
@@ -56,4 +60,4 @@ SQLite has one writable instance on persistent /data. Keep the in-process schedu
 - [Security](docs/SECURITY.md), [product](docs/PRODUCT.md) and [decisions](DECISIONS.md).
 - [Legal review checklist](docs/legal/LAUNCH_LEGAL_CHECKLIST.md): drafts only, not approved public policies.
 
-Human/external gates remain: review/merge of future changes, safe watch-pattern activation, backup bucket/restore drill, alert delivery, reviewed business/legal/tax/trademark decisions, real sandbox validation and explicit live-payment/launch approval. Historical reports describe their dated releases, not current production.
+Human/external gates remain: review/merge of future changes, backup bucket/restore drill, alert delivery, reviewed business/legal/tax/trademark decisions, real sandbox validation and explicit live-payment/launch approval. Historical reports describe their dated releases, not current production.

@@ -1,6 +1,6 @@
 # Deployment runbook — GitHub source RC19
 
-Production now runs RC19 from GitHub main on Railway; the operator-confirmed commit and tag live in CURRENT_DEPLOYMENT.md. Source identity lives in release.json and package.json. See [Production pipeline](PRODUCTION_PIPELINE.md) for enforced main protection and exact pending watch patterns. Documentation updates alone are not proof of a new effective production deployment.
+Production now runs RC19 from GitHub main on Railway; the operator-confirmed commit and tag live in CURRENT_DEPLOYMENT.md. Source identity lives in release.json and package.json. See [Production pipeline](PRODUCTION_PIPELINE.md) for enforced main protection and operator-confirmed watch patterns. Documentation updates alone are not proof of a new effective production deployment.
 
 ## Runtime contract
 

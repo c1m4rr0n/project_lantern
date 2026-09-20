@@ -16,13 +16,13 @@ Do not bypass CI or weaken these settings to merge. A maintainer with repository
 
 Annotated tag `v1.0.0-rc.19-production` points to `2c09f7df4601048dd602e77e486e85dd27943d5d`. No equivalent remote tag existed before creation. The tag records operator-confirmed production, not a new deployment. Never move it to a later documentation commit.
 
-## Railway inspection and pending watch patterns
+## Railway inspection and operator-confirmed watch patterns
 
 Read-only inspection of `project-lantern` / `production` / `lantern-web` reports GitHub `c1m4rr0n/project_lantern`, branch `main`, the production SHA above, `/api/ready`, port 8787, one replica and external `/data`. No `watchPatterns` field was returned and no staged changes were reported. The response also retains `source.image=node:22-bookworm-slim` and `build.builder=RAILPACK`; these mixed fields do not establish effective build behavior by themselves.
 
-Status: PREPARED ONLY, NOT APPLIED. Do not infer that docs-only pushes are already excluded. No Railway settings, variables or deployment actions were changed. Keep this documentation PR unmerged until safe filter activation is confirmed or an operator explicitly accepts a docs-only deployment.
+Status: APPLIED BY THE OPERATOR. The operator confirmed that applying Watch Paths triggered no deployment and that documentation-only merge `035f19448a59c52e6406b17508f03e7976c23ea6` did not deploy. Production remained on `2c09f7df4601048dd602e77e486e85dd27943d5d`. The earlier read-only inspection above predates activation; RC20 makes no Railway calls or configuration changes.
 
-For the repository-root Docker build, set Watch Paths to exactly these entries, one per line:
+The prepared repository-root Docker build Watch Paths, subsequently reported applied by the operator, are:
 
 ```text
 /server.js
@@ -53,7 +53,7 @@ Root Markdown documentation, `docs/**`, reports and tests alone do not match. CI
 
 Railway [Watch Paths documentation](https://docs.railway.com/builds/build-configuration#configure-watch-paths) specifies gitignore-style patterns evaluated from the repository root, even when a service root directory is configured.
 
-Safe activation checklist:
+Historical activation checklist (retain for later authorized configuration review, not an instruction to repeat activation):
 
 1. Confirm the effective production build uses the root Dockerfile and no alternate build/start command consumes additional paths. Inspect settings without exposing variable values.
 2. Change only Watch Paths on the named service in the production environment, using the exact array above. Do not accept/deploy unrelated staged changes or edit source, builder, variables, replicas, volume or domain.

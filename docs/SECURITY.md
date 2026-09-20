@@ -1,6 +1,6 @@
-# Security baseline — source RC19
+# Security baseline — source RC20
 
-Production remains RC16 until an approved deployment; this document describes the prepared source.
+Production runs RC19 from GitHub source; RC20 is a not-yet-deployed presentation/entry-flow candidate. See CURRENT_DEPLOYMENT.md.
 
 ## Implemented controls
 
@@ -20,6 +20,10 @@ Production remains RC16 until an approved deployment; this document describes th
 - Deletion drains application/scheduler work, revokes credentials, cleans tenant/outbox data and persists restart-recovery jobs. Cleanup failure puts the process into 503 recovery mode until repaired/restarted.
 - Fail-fast production configuration, persistent data-root/volume checks, SQLite integrity and single writable instance.
 - Release gate secret scanning; explicit Docker COPY excludes secrets, databases, handoff and release artifacts.
+
+## RC20 presentation boundary
+
+Verified sessions entering `/` or `/auth.html` without verify/reset parameters are redirected to Vendor Watch. Token flows and unauthenticated entry remain available. Password confirmation is a client convenience; server validation, generic recovery responses, password reauthentication, DELETE confirmation and entitlements remain authoritative. Human error copy is allowlisted and never includes unknown raw diagnostics. Shared dialogs use native modal focus containment and explicit confirmation. Report evidence remains escaped, and no-match results are not eligibility determinations.
 
 ## Retention and residual boundaries
 
