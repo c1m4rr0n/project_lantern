@@ -37,7 +37,7 @@ test('auth emails escape content and require http(s) links',()=>{
 test('digest email surfaces vendor exclusion alerts without making a legal eligibility claim',()=>{
   const out=renderDigestEmail({company:'ACME',scanned:0,strongCount:0,reviewCount:0,pursueCount:0,changedPursuits:[],topMatches:[],upcomingDeadlines:[],vendorWatch:{total:2,excludedCount:1,possibleMatchCount:0,alertCount:1,alerts:[{legalName:'Risk Vendor LLC',status:'excluded',reason:'Exact UEI match found in the active SAM.gov exclusions extract.'}]}});
   assert.match(out.subject,/vendor risk signal/i);
-  assert.match(out.html,/Vendor eligibility watch/);
+  assert.match(out.html,/Vendor Exclusion Watch/);
   assert.match(out.text,/screening and monitoring tool, not a legal determination/i);
   assert.match(out.text,/Risk Vendor LLC/);
 });

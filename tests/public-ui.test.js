@@ -26,7 +26,8 @@ test('optional pursuit onboarding surfaces actionable validation errors',async()
   assert.match(onboarding,/optional for Vendor Watch/i);
   assert.match(onboarding,/monitor vendors without NAICS/i);
   assert.match(onboarding,/Add at least one NAICS code or capability/);
-  assert.match(onboarding,/data\.message\|\|data\.error/);
+  assert.match(onboarding,/throw new Error\(data\.message\|\|data\.error/);
+  assert.match(onboarding,/catch\(error\) \{status\.textContent=humanError\(error/);
 });
 
 test('every public HTML page declares the ExcluSignal favicon',async()=>{
@@ -45,10 +46,22 @@ test('workspace navigation identifies the active page accessibly',async()=>{
   };
   for(const [file,path] of Object.entries(pages)){
     const body=await read(file);
-    assert.match(body,/class="workspaceNav"[^>]*aria-label="Workspace navigation"/,`${file} needs a navigation label`);
-    const escaped=path.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    assert.match(body,new RegExp(`href="${escaped}"[^>]*class="navLink isActive"[^>]*aria-current="page"`),`${file} needs aria-current on its active link`);
+    assert.match(body,/data-app-shell/,`${file} must use the shared shell`);
+    const {navigation}=await import('../public/polish-model.js');
+    assert.ok(navigation.some(([href])=>href===path));
   }
+  assert.match(await read('ui.js'),/aria-current="page"/);
+  assert.match(await read('ui.js'),/aria-label="Workspace navigation"/);
+});
+
+test('desktop account trigger is avatar and chevron only, with accessible identity in the menu',async()=>{
+  const source=await read('ui.js'),trigger=source.match(/<button id="accountToggle"[\s\S]*?<\/button>/)?.[0];
+  assert.ok(trigger);const visible=trigger.replace(/<[^>]*>/g,'');
+  assert.doesNotMatch(visible,/Account|Workspace|Sign out|@/);assert.match(visible,/E.*▾/);
+  assert.match(trigger,/aria-label="Open workspace settings"/);assert.match(trigger,/aria-controls="accountMenu"/);
+  assert.match(source,/Workspace settings for \$\{email\}/);
+  assert.match(source,/panel\.contains\(e\.relatedTarget\)/,'Focus transitions within the menu must not close it before the next element receives focus');
+  const css=await read('polish.css');assert.match(css,/grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/);assert.match(css,/\.shellAccount\{justify-self:end\}/);
 });
 
 test('Vendor Watch keeps primary screening actions in context and exposes inline status',async()=>{
@@ -67,7 +80,8 @@ test('Vendor Watch keeps primary screening actions in context and exposes inline
 test('responsive workspace styles keep mobile navigation and controls compact',async()=>{
   const css=await read('styles.css');
   const html=await read('vendors.html');
-  assert.match(css,/grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/,`Mobile workspace navigation should fit without horizontal scrolling`);
+  const polish=await read('polish.css');
+  assert.match(polish,/\.shellNav,\.shellAccount\{display:none\}/,`Mobile navigation must use a disclosure, not squeezed desktop links`);
   assert.ok(html.indexOf('detail vendorPanel')<html.indexOf('detail vendorAdd'),`The watchlist should precede its secondary add form in visual and reading order`);
   assert.match(css,/\.vendorHero h1\{font-size:clamp\(29px,8\.8vw,36px\)/,`The mobile Vendor Watch headline should use the compact scale`);
   assert.match(css,/min-height:42px;padding:9px 10px;font-size:16px/,`Mobile fields should be compact without triggering browser zoom`);

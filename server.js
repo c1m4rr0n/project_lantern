@@ -425,6 +425,10 @@ async function handleRequest(req, res) {
     if (url.pathname.startsWith('/api/')) return json(res, 404, { error: 'not_found' });
 
     const requested = url.pathname === '/' ? '/index.html' : (url.pathname === '/favicon.ico' ? '/favicon.svg' : url.pathname);
+    if (session && (req.method === 'GET' || req.method === 'HEAD') &&
+        (requested === '/index.html' || (requested === '/auth.html' && !url.searchParams.has('verify') && !url.searchParams.has('reset')))) {
+      res.writeHead(302, { location:'/vendors.html', ...secureHeaders, 'cache-control':'no-store' }); return res.end();
+    }
     if (['/app.html','/onboarding.html','/digest.html','/vendors.html','/account.html'].includes(requested) && !session) {
       res.writeHead(302, { location:'/auth.html', ...secureHeaders, 'cache-control':'no-store' }); return res.end();
     }

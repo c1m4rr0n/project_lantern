@@ -33,6 +33,14 @@ try {
   const verifyToken=await tokenFromOutbox('verify-email','verify');
   x=await request('/api/auth/verify-email',{method:'POST',payload:{token:verifyToken}}); expect(x.response.status,200,'verify'); const oldCookie=x.cookie;
   x=await request('/api/profile',{cookie:oldCookie}); expect(x.response.status,200,'verified access');
+  for(const path of ['/','/index.html','/auth.html']){
+    const response=await fetch(base+path,{headers:{cookie:oldCookie},redirect:'manual'});
+    expect(response.status,302,'authenticated entry redirects');expect(response.headers.get('location'),'/vendors.html','workspace destination');
+  }
+  for(const path of ['/auth.html?verify=expired','/auth.html?reset=expired']){
+    const response=await fetch(base+path,{headers:{cookie:oldCookie},redirect:'manual'});expect(response.status,200,'active token flow stays on auth');
+  }
+  for(const path of ['/','/auth.html'])expect((await fetch(base+path,{redirect:'manual'})).status,200,'public entry remains accessible');
   x=await request('/api/auth/request-password-reset',{method:'POST',payload:{email}}); expect(x.response.status,200,'reset request');
   const resetToken=await tokenFromOutbox('password-reset','reset');
   x=await request('/api/auth/reset-password',{method:'POST',payload:{token:resetToken,password:newPassword}}); expect(x.response.status,200,'reset'); const newCookie=x.cookie;
