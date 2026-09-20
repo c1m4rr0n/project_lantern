@@ -10,6 +10,10 @@ Reviewed static markup and generated strings in every public HTML/JS page, share
 |---|---|---|---|---|
 | All workspaces | Repeated brand/nav/email/Sign out/Account headers | Inconsistent, crowded, clipped email | One responsive shell, active section, account dropdown | P0 |
 | RC20 shell refinement | Avatar + Workspace label | Account control competes with primary navigation | Avatar/initial + subtle chevron only; email and actions inside dropdown; equal desktop side columns center navigation | P1 |
+| Android settings header | Workspace settings | Too long for a mobile section label | Settings (page title remains Workspace settings) | P1 |
+| Pursuit header | Isolated Sync opportunities block | Competes with the page introduction | Compact secondary action inside the hero | P1 |
+| Pursuit profile summary | Matching for : | Empty or partial profile renders broken copy | Explicit not-configured setup link; capabilities-only/name-only/complete variants | P1 |
+| Settings links | Edit company profile / View plan & billing | Browser-default link appearance | Focus-visible product actions with arrow and 44px target | P1 |
 | Navigation | Plan | Incomplete destination | Plan & Billing | P1 |
 | Account menu | Account | Ambiguous | Workspace settings; Profile & data | P1 |
 | Mobile navigation | Five tiny links always visible | Poor touch/reading targets | Menu disclosure with 44px targets, identity inside | P0 |

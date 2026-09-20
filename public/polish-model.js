@@ -1,4 +1,10 @@
 // Presentation only: server validation and evidence remain authoritative.
+export function pursuitProfile(profile={}) {
+  const name=String(profile.name||'').trim();
+  const capabilities=(Array.isArray(profile.capabilities)?profile.capabilities:[]).map(x=>String(x).trim()).filter(Boolean).join(' · ');
+  if(!name&&!capabilities)return {text:'Company profile not configured.',setup:true};
+  return {text:name?`Matching for ${name}${capabilities?`: ${capabilities}`:''}`:`Matching your capabilities: ${capabilities}`,setup:false};
+}
 export const navigation=[['/vendors.html','Vendor Watch'],['/app.html','Pursuit Watch'],['/digest.html','Daily Brief'],['/onboarding.html','Company'],['/pricing.html','Plan & Billing']];
 export const passwordMismatch=(password,confirmation)=>password!==confirmation;
 export function humanError(error,fallback='We couldn’t complete this action. Try again or contact support.') {

@@ -2,9 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-import {humanError,passwordMismatch,capacityCopy,importCapacity,classifyImport,sourceLabel} from '../public/polish-model.js';
+import {humanError,passwordMismatch,capacityCopy,importCapacity,classifyImport,sourceLabel,pursuitProfile} from '../public/polish-model.js';
 import {screeningReport} from '../src/services/vendor-export.js';
 const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
+test('Pursuit profile copy handles empty, capabilities-only, name-only and complete profiles',()=>{
+  assert.deepEqual(pursuitProfile(),{text:'Company profile not configured.',setup:true});
+  assert.deepEqual(pursuitProfile({name:' ',capabilities:['  ']}),{text:'Company profile not configured.',setup:true});
+  assert.deepEqual(pursuitProfile({capabilities:['cloud','security']}),{text:'Matching your capabilities: cloud · security',setup:false});
+  assert.deepEqual(pursuitProfile({name:'Example LLC'}),{text:'Matching for Example LLC',setup:false});
+  assert.deepEqual(pursuitProfile({name:'Example LLC',capabilities:['cloud','security']}),{text:'Matching for Example LLC: cloud · security',setup:false});
+});
+test('Android polish keeps Settings short and moves sync/settings actions into product context',async()=>{
+  assert.match(await read('public/ui.js'),/\?\.\[1\]\|\|'Settings'/);
+  const app=await read('public/app.html');assert.doesNotMatch(app,/class="pageActions"/);
+  assert.match(app,/<section class="hero[^>]*pursuitHero"[\s\S]*id="sync" class="secondaryButton"[\s\S]*<\/section>/);
+  const account=await read('public/account.html');assert.match(account,/class="productAction" href="\/onboarding.html">Edit company profile →/);assert.match(account,/class="productAction" href="\/pricing.html">View plan &amp; billing →/);
+});
 for(const action of ['register','resetForm'])test(`${action}: mismatch prevents POST and retains form`,async()=>{
   const elements=new Map();const element=key=>{if(!elements.has(key))elements.set(key,{classList:{toggle(){}},hidden:false,textContent:'',innerHTML:'',querySelector:()=>({disabled:false}),elements:{confirmation:{focus(){}}}});return elements.get(key);};
   let posts=0;const source=(await read('public/auth.js')).replace(/^import .*;\r?\n/gm,'');

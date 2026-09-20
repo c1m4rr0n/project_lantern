@@ -14,7 +14,7 @@ const output=process.env.RC20_QA_OUTPUT?resolve(process.env.RC20_QA_OUTPUT):awai
 await mkdir(output,{recursive:true});
 const child=spawn(process.execPath,['server.js'],{cwd:fileURLToPath(new URL('..',import.meta.url)),env:{...process.env,NODE_ENV:'development',PORT:String(port),PUBLIC_BASE_URL:base,DATA_ROOT:root,STORAGE_DRIVER:'sqlite',DATA_PROVIDER:'mock',MARKET_PROVIDER:'mock',EXCLUSION_PROVIDER:'mock',EMAIL_PROVIDER:'console',BILLING_PROVIDER:'mock',SCHEDULER_ENABLED:'false',COOKIE_SECURE:'false',SESSION_SECRET:randomBytes(32).toString('hex'),AUTH_RATE_LIMIT:'200',PUBLIC_LAUNCH_ENABLED:'false'},stdio:['ignore','pipe','pipe']});
 let diagnostics='';child.stdout.on('data',()=>{});child.stderr.on('data',c=>diagnostics+=c);
-let browser;const errors=[],results=[];
+let browser;const errors=[],results=[],profileChecks=[];
 try{
   let ready=false;for(let i=0;i<100;i++){try{if((await fetch(base+'/api/ready')).ok){ready=true;break;}}catch{}await new Promise(r=>setTimeout(r,100));}assert.ok(ready,diagnostics);
   browser=await chromium.launch({channel:'chrome',headless:true});
@@ -50,13 +50,18 @@ try{
   await page.locator('#csvFile').setInputFiles({name:'bad.csv',mimeType:'text/csv',buffer:Buffer.from('name\n"bad')});await page.locator('#csvPreview').click();await page.getByText(/unclosed quotation mark/).waitFor();
   // Keep a populated review for mobile/table inspection without committing anything.
   await page.locator('#csvFile').setInputFiles({name:'review.csv',mimeType:'text/csv',buffer:Buffer.from('name,cage\nNew vendor,\nRepeated,\nRepeated,\nInvalid,TOOLONG')});await page.locator('#csvPreview').click();await page.locator('#csvReview').waitFor();
-  for(const width of [360,390,430,768,1024,1440]){
+  for(const width of [360,390,430,768,980,1024,1100,1440]){
     await page.setViewportSize({width,height:1000});
     for(const path of ['/vendors.html','/app.html','/digest.html','/onboarding.html','/pricing.html?reason=limit','/account.html']){
       if(!path.startsWith('/vendors'))await page.goto(base+path);else if(!page.url().endsWith('/vendors.html')){await page.goto(base+path);await page.waitForFunction(()=>document.querySelector('#vendorCount')?.textContent==='25');}
       await page.locator('[data-account-email]').first().waitFor({state:'attached'});
       await page.waitForFunction(()=>document.querySelector('[data-account-email]')?.textContent.includes('@'));
-      const shell=page.locator('.appShell'),mobile=width<=1024,trigger=page.locator(mobile?'#mobileToggle':'#accountToggle'),menu=page.locator(mobile?'#mobileMenu':'#accountMenu');
+      if(path==='/account.html'){
+        assert.equal(await page.locator('.shellSection').textContent(),'Settings');
+        for(const link of await page.locator('.productAction').all()){assert.ok((await link.boundingBox()).height>=44);assert.equal(await link.evaluate(el=>getComputedStyle(el).textDecorationLine),'none');}
+        await page.screenshot({path:join(output,`${width}-settings-viewport.png`)});
+      }
+      const shell=page.locator('.appShell'),mobile=width<=1100,trigger=page.locator(mobile?'#mobileToggle':'#accountToggle'),menu=page.locator(mobile?'#mobileMenu':'#accountMenu');
       assert.doesNotMatch(await shell.innerText(),/@|Sign out/);
       if(mobile){assert.equal(await page.locator('#accountToggle').isVisible(),false);assert.equal(await page.locator('.shellNav').isVisible(),false);}
       else{
@@ -80,16 +85,27 @@ try{
       }
       const overflow=await page.evaluate(()=>({viewport:innerWidth,scroll:document.documentElement.scrollWidth,offenders:[...document.querySelectorAll('main *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).slice(0,5).map(e=>e.className)}));
       results.push({width,path,...overflow});assert.ok(overflow.scroll<=width+1,JSON.stringify(results.at(-1)));
-      if(width<=1024){await page.locator('#mobileToggle').click();assert.ok(await page.locator('#mobileMenu').isVisible());assert.match(await page.locator('#mobileMenu [data-account-email]').innerText(),/qa-long/);assert.ok((await page.locator('#mobileMenu').boundingBox()).width<=width);await page.keyboard.press('Escape');assert.equal(await page.locator('#mobileToggle').getAttribute('aria-expanded'),'false');}
+      if(width<=1100){await page.locator('#mobileToggle').click();assert.ok(await page.locator('#mobileMenu').isVisible());assert.match(await page.locator('#mobileMenu [data-account-email]').innerText(),/qa-long/);assert.ok((await page.locator('#mobileMenu').boundingBox()).width<=width);await page.keyboard.press('Escape');assert.equal(await page.locator('#mobileToggle').getAttribute('aria-expanded'),'false');}
       else{await page.locator('#accountToggle').click();assert.ok(await page.locator('#accountMenu').isVisible());await page.keyboard.press('Escape');}
       await page.screenshot({path:join(output,`${width}-${path.split('?')[0].slice(1)}.png`),fullPage:true});
+      if(path==='/app.html'){
+        const cases=[['empty',{},'Company profile not configured.'],['capabilities',{capabilities:['cloud','security']},'Matching your capabilities: cloud · security'],['name',{name:'Example LLC'},'Matching for Example LLC'],['complete',{name:'Example Federal Services with a longer company name',capabilities:['cloud','security']},'Matching for Example Federal Services with a longer company name: cloud · security']];
+        for(const [label,profile,expected]of cases){
+          await page.route('**/api/profile',route=>route.fulfill({json:profile}));await page.goto(base+'/app.html');await page.waitForFunction(text=>document.querySelector('#profileLine')?.textContent.startsWith(text),expected);
+          assert.equal(await page.locator('#profileLine').innerText(),expected+(label==='empty'?' Set up profile →':''));
+          if(label==='empty')assert.equal(await page.locator('#profileLine a').getAttribute('href'),'/onboarding.html');
+          assert.equal(await page.locator('.pursuitHeading #sync').count(),1);const sync=await page.locator('#sync').boundingBox();assert.ok(sync.height>=44&&sync.width<230);
+          assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));profileChecks.push({width,profile:label});
+          await page.screenshot({path:join(output,`${width}-pursuit-${label}.png`)});await page.unroute('**/api/profile');
+        }
+      }
     }
   }
   await page.goto(`${base}/api/vendors/${first.id}/report`);assert.match(await page.locator('body').innerText(),/No matching exclusion records/);await page.screenshot({path:join(output,'report.png'),fullPage:true});await page.pdf({path:join(output,'report.pdf'),format:'A4'});
   const guest=await browser.newContext(),auth=await guest.newPage();auth.on('pageerror',e=>errors.push(e.message));
-  for(const width of [360,390,430,768,1024,1440]){await auth.setViewportSize({width,height:1000});for(const path of ['/','/auth.html']){await auth.goto(base+path);const scroll=await auth.evaluate(()=>document.documentElement.scrollWidth);assert.ok(scroll<=width+1,`${path} overflow at ${width}: ${scroll}`);results.push({width,path,scroll});await auth.screenshot({path:join(output,`${width}-${path==='/'?'landing':'auth'}.png`),fullPage:true});}}
+  for(const width of [360,390,430,768,980,1024,1100,1440]){await auth.setViewportSize({width,height:1000});for(const path of ['/','/auth.html']){await auth.goto(base+path);const scroll=await auth.evaluate(()=>document.documentElement.scrollWidth);assert.ok(scroll<=width+1,`${path} overflow at ${width}: ${scroll}`);results.push({width,path,scroll});await auth.screenshot({path:join(output,`${width}-${path==='/'?'landing':'auth'}.png`),fullPage:true});}}
   await auth.locator('#register [name=email]').fill('mismatch@example.test');await auth.locator('#register [name=password]').fill(password);await auth.locator('#register [name=confirmation]').fill('a different password');let registerPosts=0;auth.on('request',r=>{if(r.url().endsWith('/api/auth/register'))registerPosts++;});await auth.locator('#register button[type=submit]').click();assert.match(await auth.locator('#registerStatus').innerText(),/do not match/);assert.equal(registerPosts,0);
   await auth.locator('#register .passwordToggle').first().click();assert.equal(await auth.locator('#register [name=password]').getAttribute('type'),'text');
   await auth.goto(base+'/auth.html?reset=local-invalid-token');await auth.locator('#resetForm [name=password]').fill(password);await auth.locator('#resetForm [name=confirmation]').fill('another password');let resetPosts=0;auth.on('request',r=>{if(r.url().endsWith('/api/auth/reset-password'))resetPosts++;});await auth.locator('#resetForm button[type=submit]').click();assert.match(await auth.locator('#tokenStatus').innerText(),/do not match/);assert.equal(resetPosts,0);
-  assert.deepEqual(errors,[]);await writeFile(join(output,'results.json'),JSON.stringify({ok:true,checks:results,consoleErrors:errors},null,2));console.log(JSON.stringify({ok:true,output,responsiveChecks:results.length,consoleErrors:errors}));
+  assert.deepEqual(errors,[]);await writeFile(join(output,'results.json'),JSON.stringify({ok:true,checks:results,profileChecks,consoleErrors:errors},null,2));console.log(JSON.stringify({ok:true,output,responsiveChecks:results.length,profileChecks:profileChecks.length,consoleErrors:errors}));
 }finally{await browser?.close();child.kill('SIGTERM');await new Promise(r=>{const timer=setTimeout(r,2000);child.once('exit',()=>{clearTimeout(timer);r();});});await rm(root,{recursive:true,force:true});}
