@@ -54,6 +54,16 @@ test('workspace navigation identifies the active page accessibly',async()=>{
   assert.match(await read('ui.js'),/aria-label="Workspace navigation"/);
 });
 
+test('desktop account trigger is avatar and chevron only, with accessible identity in the menu',async()=>{
+  const source=await read('ui.js'),trigger=source.match(/<button id="accountToggle"[\s\S]*?<\/button>/)?.[0];
+  assert.ok(trigger);const visible=trigger.replace(/<[^>]*>/g,'');
+  assert.doesNotMatch(visible,/Account|Workspace|Sign out|@/);assert.match(visible,/E.*▾/);
+  assert.match(trigger,/aria-label="Open workspace settings"/);assert.match(trigger,/aria-controls="accountMenu"/);
+  assert.match(source,/Workspace settings for \$\{email\}/);
+  assert.match(source,/panel\.contains\(e\.relatedTarget\)/,'Focus transitions within the menu must not close it before the next element receives focus');
+  const css=await read('polish.css');assert.match(css,/grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/);assert.match(css,/\.shellAccount\{justify-self:end\}/);
+});
+
 test('Vendor Watch keeps primary screening actions in context and exposes inline status',async()=>{
   const html=await read('vendors.html');
   const script=await read('vendors.js');

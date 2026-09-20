@@ -56,6 +56,23 @@ try{
       if(!path.startsWith('/vendors'))await page.goto(base+path);else if(!page.url().endsWith('/vendors.html')){await page.goto(base+path);await page.waitForFunction(()=>document.querySelector('#vendorCount')?.textContent==='25');}
       await page.locator('[data-account-email]').first().waitFor({state:'attached'});
       await page.waitForFunction(()=>document.querySelector('[data-account-email]')?.textContent.includes('@'));
+      const shell=page.locator('.appShell'),mobile=width<=1024,trigger=page.locator(mobile?'#mobileToggle':'#accountToggle'),menu=page.locator(mobile?'#mobileMenu':'#accountMenu');
+      assert.doesNotMatch(await shell.innerText(),/@|Sign out/);
+      if(mobile){assert.equal(await page.locator('#accountToggle').isVisible(),false);assert.equal(await page.locator('.shellNav').isVisible(),false);}
+      else{
+        assert.match((await trigger.innerText()).replace(/\s/g,''),/^Q▾$/);
+        const alignment=await page.evaluate(()=>{const nav=document.querySelector('.shellNav').getBoundingClientRect(),account=document.querySelector('#accountToggle').getBoundingClientRect(),link=document.querySelector('.shellNav a').getBoundingClientRect();return {center:nav.x+nav.width/2,viewport:innerWidth,accountHeight:account.height,navHeight:link.height,accountRight:account.right,font:getComputedStyle(document.querySelector('#accountAvatar')).fontFamily,navFont:getComputedStyle(document.querySelector('.shellNav a')).fontFamily};});
+        assert.ok(Math.abs(alignment.center-width/2)<1);assert.ok(Math.abs(alignment.accountHeight-alignment.navHeight)<1);assert.equal(alignment.font,alignment.navFont);assert.ok(width-alignment.accountRight<=25);
+      }
+      assert.ok((await trigger.boundingBox()).height>=44);assert.ok((await trigger.boundingBox()).width>=44);
+      if(path==='/vendors.html')await shell.screenshot({path:join(output,`${width}-shell-closed.png`)});
+      await trigger.focus();await page.keyboard.press('Enter');assert.ok(await menu.isVisible());
+      assert.ok(await menu.evaluate(el=>el.contains(document.activeElement)));await page.keyboard.press('Tab');assert.ok(await menu.evaluate(el=>el.contains(document.activeElement)));
+      assert.ok(await menu.getByText(email,{exact:true}).isVisible());assert.ok(await menu.getByRole('button',{name:'Sign out',exact:true}).isVisible());
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+      if(path==='/vendors.html')await page.screenshot({path:join(output,`${width}-shell-open.png`)});
+      await page.keyboard.press('Escape');assert.equal(await trigger.getAttribute('aria-expanded'),'false');assert.ok(await trigger.evaluate(el=>el===document.activeElement));
+      await trigger.click();await page.mouse.click(2,3);assert.equal(await trigger.getAttribute('aria-expanded'),'false');
       if(path==='/vendors.html'){
         await page.locator('#csvFile').setInputFiles({name:'review.csv',mimeType:'text/csv',buffer:Buffer.from('name,cage\nNew vendor,\nRepeated,\nRepeated,\nInvalid,TOOLONG')});await page.locator('#csvPreview').click();await page.locator('#csvReview').waitFor();
         await page.locator('#csvReview').screenshot({path:join(output,`${width}-import-review.png`)});

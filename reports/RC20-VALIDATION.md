@@ -71,3 +71,14 @@ The protected workflow is unchanged. The PR must run exact checks `release-gate 
 ## Intentionally unchanged
 
 Exact UEI/CAGE/name-only matching and review requirements, tenant isolation, server entitlements, CSV parser/canonical validation/fingerprints, import no-auto-screen, archive/evidence retention, reauthentication/deletion rules, billing plan keys, Stripe state, scheduler/outbox idempotency, SQLite single-writer architecture, fail-closed readiness, noindex defaults and legal meaning are preserved. Backend changes are limited to the requested authenticated entry redirect and report/email presentation; no production business rule was relaxed.
+
+## Pre-merge shell refinement
+
+The account trigger is now only a circular initial and subtle chevron. Email, workspace/profile/billing actions and sign-out remain inside the disclosure; there is no permanent Account/Workspace label. Equal desktop side columns center primary navigation independently of the brand/account widths; account/nav controls align at 44px. Shell links and avatar inherit shell typography without browser-default underlining. Tablet/mobile retain brand, current section and a single Menu trigger.
+
+Expanded browser QA detected a focus timing bug in the previous microtask-based focusout handler: Tab could close the menu before the next item received focus. The handler now uses the focus event's relatedTarget; keyboard traversal, Escape/focus return, outside click and screen-reader labels were rechecked on all six workspace pages at all six widths.
+
+- Full local Node 22 release gate: PASS, **122/122 tests**, all smokes and secret scan (0 findings).
+- Responsive browser rerun: PASS, **48 page/width checks**, no horizontal overflow or page errors; 36 authenticated shell checks include open/closed state, hidden top-bar identity, 44px controls, keyboard entry/Tab/Escape/outside close. Desktop QA verifies true viewport-centered nav and matching account/nav control heights and font families.
+- Fresh evidence in the task workspace `work/rc20-shell-qa/`: `{360,390,430,768,1024,1440}-shell-closed.png` and corresponding `-shell-open.png`, plus refreshed full-page/viewport captures and `results.json`. All six closed shell captures and mobile/desktop open menu captures were visually inspected. Evidence uses disposable local fixtures, not production.
+- Changes stay on the existing RC20 branch/PR #4. Latest remote CI results are recorded per commit on that PR; do not infer them from the earlier 121-test run. No merge or Railway/production action is authorized or performed.

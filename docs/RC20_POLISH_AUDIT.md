@@ -9,6 +9,7 @@ Reviewed static markup and generated strings in every public HTML/JS page, share
 | Screen | Current | Problem | Proposed | Priority |
 |---|---|---|---|---|
 | All workspaces | Repeated brand/nav/email/Sign out/Account headers | Inconsistent, crowded, clipped email | One responsive shell, active section, account dropdown | P0 |
+| RC20 shell refinement | Avatar + Workspace label | Account control competes with primary navigation | Avatar/initial + subtle chevron only; email and actions inside dropdown; equal desktop side columns center navigation | P1 |
 | Navigation | Plan | Incomplete destination | Plan & Billing | P1 |
 | Account menu | Account | Ambiguous | Workspace settings; Profile & data | P1 |
 | Mobile navigation | Five tiny links always visible | Poor touch/reading targets | Menu disclosure with 44px targets, identity inside | P0 |
