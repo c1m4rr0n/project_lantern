@@ -17,7 +17,7 @@ export class SamDiscoveryPages {
   constructor({root,apiKey,fetchImpl=fetch,env={},now=Date.now,sleep=ms=>new Promise(r=>setTimeout(r,ms))}){
     this.root=root;this.apiKey=apiKey;this.fetchImpl=fetchImpl;this.now=now;this.sleep=sleep;this.inflight=new Map();this.queue=Promise.resolve();this.nextRequest=0;this.cooldown=0;
     this.ttl=integer(env.OPPORTUNITY_CACHE_TTL_MS,900000,1000,86400000);this.maxStale=Math.max(this.ttl,integer(env.OPPORTUNITY_MAX_STALE_MS,86400000,1000,604800000));
-    this.gap=integer(env.DISCOVERY_REQUEST_INTERVAL_MS,250,0,5000);
+    this.gap=integer(env.DISCOVERY_REQUEST_INTERVAL_MS,1000,0,5000);
   }
   async get(args){
     if(!this.apiKey)throw discoveryError('discovery_not_configured');

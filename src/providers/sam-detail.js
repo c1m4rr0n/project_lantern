@@ -34,12 +34,14 @@ export function safeSamDescriptionUrl(rawUrl, apiKey) {
   return url;
 }
 
-export async function fetchSamDescription({ apiKey, descriptionUrl, fetchImpl = fetch, wait = sleep, now = Date.now }) {
+export async function fetchSamDescription({ apiKey, descriptionUrl, fetchImpl = fetch, wait = sleep, now = Date.now, beforeRequest = () => {} }) {
   if (!apiKey) throw enrichmentError('configuration');
   const url = safeSamDescriptionUrl(descriptionUrl, apiKey);
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const response = await fetchImpl(url, { redirect: 'error', signal: AbortSignal.timeout(10_000), headers: { 'user-agent': 'ExcluSignal/1.0 opportunity-enrichment', accept: 'text/plain,text/html,application/json;q=0.8' } });
+      beforeRequest();
+      // Shared admission starts the timeout and rechecks provider cooldown after pacing.
+      const response = await fetchImpl(url, { redirect: 'error', samRequestTimeoutMs:10_000, samBeforeDispatch:beforeRequest, signal: AbortSignal.timeout(10_000), headers: { 'user-agent': 'ExcluSignal/1.0 opportunity-enrichment', accept: 'text/plain,text/html,application/json;q=0.8' } });
       if (!response.ok) throw responseError(response, now());
       let raw = await response.text();
       if (raw.length > 1_000_000) throw enrichmentError('malformed', response.status);
@@ -99,8 +101,8 @@ export class SamDetailCache {
 
     const task = Promise.resolve().then(async () => {
       try {
-        if (this.cooldown && Date.parse(this.cooldown.retryAt) > this.now()) throw this.cooldown;
-        const description = await fetchSamDescription({ apiKey: this.apiKey, descriptionUrl, fetchImpl: this.fetchImpl, now: this.now, wait: this.wait });
+        const beforeRequest = () => { if (this.cooldown && Date.parse(this.cooldown.retryAt) > this.now()) throw this.cooldown; };
+        const description = await fetchSamDescription({ apiKey: this.apiKey, descriptionUrl, fetchImpl: this.fetchImpl, now: this.now, wait: this.wait, beforeRequest });
         const result = { fetchedAt: new Date(this.now()).toISOString(), description, cache: cached ? 'refresh' : 'miss' };
         await writeCache(path, { fetchedAt: result.fetchedAt, description });
         return result;

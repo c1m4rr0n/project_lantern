@@ -10,7 +10,7 @@ import {SamRequestBudget} from '../ops/sam-request-budget.js';
 
 export function createProviders({ env = process.env, dataRoot, fetchImpl = fetch }) {
   const providerName = env.DATA_PROVIDER || (env.SAM_API_KEY ? 'sam' : 'mock');
-  const samBudget=new SamRequestBudget({path:join(dataRoot,'ops/sam-request-budget.json'),limit:env.SAM_DAILY_REQUEST_BUDGET});
+  const samBudget=new SamRequestBudget({path:join(dataRoot,'ops/sam-request-budget.json'),limit:env.SAM_DAILY_REQUEST_BUDGET,quietMs:env.SAM_POST_DISCOVERY_QUIET_MS});
   const provider = createDiscoveryProvider({providerName,env,dataRoot,fetchImpl:samBudget.wrap(fetchImpl,'discovery')});
   provider.budget=samBudget;
   provider.withRequestContext=(context,fn)=>samBudget.run(context,fn);

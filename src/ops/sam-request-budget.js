@@ -2,7 +2,8 @@ import {AsyncLocalStorage} from 'node:async_hooks';
 import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {discoveryError} from '../domain/discovery.js';
+import {discoveryError,integer} from '../domain/discovery.js';
+import {setTimeout as sleep} from 'node:timers/promises';
 
 export function dailyRequestBudget(value) {
   if(!/^\d+$/.test(String(value??'').trim()))return null;
@@ -16,9 +17,10 @@ const counter=value=>Number.isSafeInteger(value)&&value>=0;
 // One authoritative ledger per application/data root in the supported single-writer process.
 // Counts are persisted BEFORE dispatch, so a crash can overcount but cannot refund a sent request.
 export class SamRequestBudget {
-  constructor({path,limit,now=Date.now,log=entry=>console.log(JSON.stringify(entry))}) {
+  constructor({path,limit,quietMs,now=Date.now,wait=sleep,log=entry=>console.log(JSON.stringify(entry))}) {
     this.path=path;this.limit=dailyRequestBudget(limit);this.now=now;this.log=log;
     this.context=new AsyncLocalStorage();this.queue=Promise.resolve();this.state=null;this.leases=new Set();
+    this.quietMs=integer(quietMs,1500,0,10000);this.wait=wait;this.lastRequestAt=null;this.dispatchQueue=Promise.resolve();
   }
   run(context,fn){return this.context.run({...this.context.getStore(),...context},fn);}
   current(){return this.context.getStore()||{};}
@@ -79,8 +81,29 @@ export class SamRequestBudget {
     // Only actual SAM API dispatches count; downstream files on other hosts are not SAM API calls.
     let target=new URL(url instanceof Request?url.url:url),requestOptions={...options,redirect:'manual'};
     for(let hop=0;hop<6;hop++){
-      if(['api.sam.gov','api-alpha.sam.gov'].includes(target.hostname))await this.consume(kind);
-      const response=await fetchImpl(target,requestOptions);
+      let response;
+      if(['api.sam.gov','api-alpha.sam.gov'].includes(target.hostname)){
+        // Serialize admission, not response bodies. No other SAM dispatch can cut into
+        // the quiet period; cache hits never reach this layer. Recheck quota AFTER waiting.
+        const admission=this.dispatchQueue.then(async()=>{
+          let waitedMs=0;
+          if(kind==='description' && this.current().source!=='scheduler' && this.lastRequestAt!==null){
+            let remaining;
+            while((remaining=Math.max(0,this.lastRequestAt+this.quietMs-this.now()))>0){await this.wait(remaining);waitedMs+=remaining;}
+          }
+          const {samRequestTimeoutMs,samBeforeDispatch,...dispatchOptions}=requestOptions;
+          // A provider may have received Retry-After while this request was waiting.
+          samBeforeDispatch?.();
+          await this.consume(kind);
+          // Description timeout starts at dispatch, not while queued for quiet time.
+          if(samRequestTimeoutMs)dispatchOptions.signal=AbortSignal.timeout(samRequestTimeoutMs);
+          this.lastRequestAt=this.now();
+          if(waitedMs)this.log({event:'sam.upstream.pacing',kind:'description',source:'manual',waitedMs,pacingReason:'post_discovery_quiet'});
+          return {pending:fetchImpl(target,dispatchOptions)};
+        });
+        this.dispatchQueue=admission.then(()=>{},()=>{});
+        response=await (await admission).pending;
+      }else response=await fetchImpl(target,requestOptions);
       if(![301,302,303,307,308].includes(response.status)||options.redirect==='manual')return response;
       if(options.redirect==='error')throw new Error('SAM redirect rejected');
       const location=response.headers?.get('location');if(!location)return response;

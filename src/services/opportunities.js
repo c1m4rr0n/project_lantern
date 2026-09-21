@@ -304,7 +304,7 @@ export class OpportunityService {
     }
     if (!this.detailProvider) throw enrichmentError('configuration');
     let detail, staleDetail;
-    const fetchDetail = () => this.detailProvider.get({ id:current.id, descriptionUrl:current.descriptionUrl, forceRefresh:true });
+    const fetchDetail = () => this.detailProvider.get({ id:current.id, descriptionUrl:current.descriptionUrl });
     try {
       detail = await fetchDetail();
       if (detail.cache === 'stale-fallback' && detail.upstreamError === 'enrichment_not_found' && this.watchProvider) { staleDetail = detail; throw enrichmentError('not_found', detail.upstreamStatus); }

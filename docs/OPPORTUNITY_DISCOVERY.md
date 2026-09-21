@@ -32,13 +32,24 @@ The official API also documents 404 for “No Data found”. Only that explicit 
 | DISCOVERY_RETAIN_RELEVANT | 500 | 1–2,000 |
 | DISCOVERY_RETAIN_EXPLORATION | 100 | 0–500 |
 | DISCOVERY_MAX_ELAPSED_MS | 120,000 | 1,000–180,000 |
-| DISCOVERY_REQUEST_INTERVAL_MS | 250 | 0–5,000 |
+| DISCOVERY_REQUEST_INTERVAL_MS | 1,000 | 0–5,000 |
+| SAM_POST_DISCOVERY_QUIET_MS | 1,500 | 0–10,000 |
 | OPPORTUNITY_CACHE_TTL_MS | 900,000 | 1,000–86,400,000 |
 | OPPORTUNITY_MAX_STALE_MS | 86,400,000 | TTL–604,800,000 |
 | DISCOVERY_FRESHNESS_MS | OPPORTUNITY_CACHE_TTL_MS (900,000) | 1,000–86,400,000 |
 | SAM_DAILY_REQUEST_BUDGET | unset (no daily allowance claimed) | Optional positive safe integer; invalid/unset disables only the daily cap |
 
 Invalid/non-finite values use defaults; numeric values are floored/clamped. Daily SAM quotas depend on key role. Operators should choose conservative settings within their actual quota, not interpret per-discovery caps as a daily quota guarantee. The process serializes discovery HTTP calls and coalesces identical in-flight pages. Up to three transient attempts use 500/1,000ms backoff; each attempt consumes the request budget. 429 establishes a cooldown (Retry-After seconds where provided, otherwise 60 seconds), with no immediate retry. Persistent 4xx fails closed; 5xx/network retries are bounded. Tracked per-notice refresh retains its existing independent cache/freshness policy.
+
+## Conservative request pacing
+
+Discovery defaults to a 1,000ms dispatch gap, still serialized with round-robin queries, exact-query caching and in-flight coalescing. Retry backoff overlaps elapsed gap time rather than adding another fixed delay. Eight fast discovery pages have seven seconds of baseline spacing, plus network/storage time; caps and horizon logic are unchanged.
+
+The shared SAM layer records the most recent actual dispatch attempt in process memory (including failed requests). Before a manual live description request, it waits only the remainder of SAM_POST_DISCOVERY_QUIET_MS since that SAM dispatch. Admission is serialized so simultaneous callers cannot bypass the quiet interval; other SAM admissions queue behind an active wait. Scheduled descriptions retain their existing policy. No pacing timestamp is persisted or treated as a quota/rate-limit reset.
+
+Fresh description-cache hits return immediately: the manual enrichment service no longer forces a live refresh. Amendment analysis and broken-link recovery retain explicit forced refresh where required. Cache reads never enter pacing or spend budget. Quota is checked/charged after waiting, only for an admitted dispatch. The description network timeout starts after admission. Retry-After is rechecked before dispatch so a queued request cannot bypass newly learned provider cooldown. No automatic speed-up or token bucket is added.
+
+Safe sam.upstream.pacing logs include kind/source, waitedMs and pacingReason=post_discovery_quiet, without URLs, keys or profile/description contents. Defaults apply without new operator configuration; existing explicit interval overrides continue to win. Pacing mitigates bursts but cannot guarantee absence of SAM 429s or account-wide quota exhaustion, especially with external consumers. Repeat the operator preview acceptance below before promotion.
 
 ## Cache, isolation and errors
 
@@ -78,7 +89,7 @@ The [official public API documentation](https://open.gsa.gov/api/get-opportuniti
 
 Description fetches use at most three transient attempts, 500/1,000ms backoff and 10-second request timeouts. Permanent/auth/malformed failures do not retry. A 429 establishes a process-wide description-provider cooldown using Retry-After seconds or HTTP-date (one minute if absent/invalid), including forced actions and other notices. Every dispatched retry/metadata recovery remains charged by the shared SAM ledger; budget errors propagate without retries. Official HTTPS hosts only, no automatic description redirects. Existing valid cached descriptions may be returned within SAM_DETAIL_MAX_STALE_MS, explicitly labeled stale, not represented as current.
 
-A broken or missing description URL may be re-resolved once through forced same-notice metadata; only a matching notice ID and validated replacement URL are used. Failed repair preserves valid stale evidence, when available. Provider failures leave the rest of Pursuit Watch usable and offer Open official source. Safe logs contain category and upstream status only. No new environment setting or production change is required for this pass.
+A broken or missing description URL may be re-resolved once through forced same-notice metadata; only a matching notice ID and validated replacement URL are used. Failed repair preserves valid stale evidence, when available. Provider failures leave the rest of Pursuit Watch usable and offer Open official source. Safe logs contain category and upstream status only. No production change is performed. The optional pacing setting above has a safe built-in default.
 
 Before production promotion, perform the manual NAICS 115310 / first-20-results acceptance in reports/RC21-VALIDATION.md; this is pending operator work, not a CI/live-provider test.
 
