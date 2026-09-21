@@ -1,3 +1,4 @@
+import {enrichmentError, safeEnrichmentError} from '../providers/enrichment-error.js';
 import { createHash } from 'node:crypto';
 import { scoreOpportunity } from '../domain/scoring.js';
 import { extractRequirements } from '../domain/requirements.js';
@@ -292,17 +293,39 @@ export class OpportunityService {
     return { count:items.length, syncedAt, materialChanges, requirementChanges, requirementChecks, watchRefreshes, trackedRetained, ...(discovery?{discovery:discovery.summary}:{}) };
   }
   async enrich(id) {
-    const current = await this.store.findOpportunity(id);
+    let current = await this.store.findOpportunity(id);
     if (!current) return null;
-    if (!current.descriptionUrl) {
+    if (!current.descriptionUrl && current.description) {
       const extracted = current.description ? extractRequirements(current.description, { source:`SAM.gov description · ${current.id}` }) : [];
       const requirements = reconcileRequirements(current.requirements || [], extracted);
       const saved = { ...current, requirements, requirementSnapshot:extracted, requirementCheckedAt:new Date().toISOString(), enrichedAt:new Date().toISOString(), enrichment:{ source:'embedded-description', cache:'n/a' } };
       await this.store.replaceOpportunity(saved);
       return this.get(id);
     }
-    if (!this.detailProvider) throw new Error('opportunity enrichment is not configured');
-    const detail = await this.detailProvider.get({ id:current.id, descriptionUrl:current.descriptionUrl, forceRefresh:true });
+    if (!this.detailProvider) throw enrichmentError('configuration');
+    let detail, staleDetail;
+    const fetchDetail = () => this.detailProvider.get({ id:current.id, descriptionUrl:current.descriptionUrl, forceRefresh:true });
+    try {
+      detail = await fetchDetail();
+      if (detail.cache === 'stale-fallback' && detail.upstreamError === 'enrichment_not_found' && this.watchProvider) { staleDetail = detail; throw enrichmentError('not_found', detail.upstreamStatus); }
+    }
+    catch (error) {
+      if (isSamBudgetError(error)) throw error;
+      const safe = safeEnrichmentError(error);
+      if (safe.category !== 'not_found' || !this.watchProvider) throw safe;
+      // Refresh only this public notice's description URL, never overwrite tenant evidence/workflow.
+      try {
+        const metadata = await this.watchProvider.get({id:current.id, postedDate:current.postedDate, forceRefresh:true});
+        const fresh = metadata?.item;
+        if (metadata?.cache === 'stale-fallback' || fresh?.id !== current.id || !fresh.descriptionUrl || fresh.descriptionUrl === current.descriptionUrl) throw safe;
+        detail = await this.detailProvider.get({id:current.id,descriptionUrl:fresh.descriptionUrl,forceRefresh:true});
+        if (detail.cache !== 'stale-fallback') current = {...current, descriptionUrl:fresh.descriptionUrl};
+      } catch (refreshError) {
+        if (isSamBudgetError(refreshError)) throw refreshError;
+        if (staleDetail) detail = staleDetail;
+        else throw safeEnrichmentError(refreshError);
+      }
+    }
     const extracted=extractRequirements(detail.description, { source:`SAM.gov description · ${current.id}` });
     const requirements = reconcileRequirements(current.requirements || [], extracted);
     const now=new Date().toISOString();

@@ -9,6 +9,8 @@ Final-requirements continuation: existing branch/PR #5 reused, based on the stil
 
 Source identity: 1.0.0-rc.21. Production RC20 identity is operator-reported, not independently rechecked through Railway in this task. No automatic merge or deployment is authorized.
 
+Trust/enrichment continuation (2026-09-21): verified requested head `40d87707c5741ddfd0984b0438753071538c512a`, same branch and PR #5. Baseline gate passed 175/175 tests and all smokes. This pass changes presentation and description error recovery only, not scoring weights, discovery retention, billing or exclusion screening.
+
 ## Implementation
 
 - Deterministic NAICS-first query plan with stable deduped inputs, conservative state priority/unscoped fallback and small capability-title fallback; empty profiles fail before provider access.
@@ -24,7 +26,7 @@ Source identity: 1.0.0-rc.21. Production RC20 identity is operator-reported, not
 
 ## Automated checks
 
-Final local Node 22 release gate: 175/175 tests; syntax, auth, vendor-watch, billing, Change Watch, requirement delta, scheduler, production preflight, lifecycle, commercial smoke and secret scan all PASS. `git diff --check` PASS. The commercial HTTP smoke also verifies discovery authentication, empty-profile rejection, successful mock discovery, summary isolation and freshness reuse despite an attempted `force:true`. The documented SAM 404 “No Data found” first-page response is distinguished from generic 404/provider failures.
+Final local Node 22 release gate: 187/187 tests; syntax, auth, vendor-watch, billing, Change Watch, requirement delta, scheduler, production preflight, lifecycle, commercial smoke and secret scan all PASS. `git diff --check` PASS. The commercial HTTP smoke also verifies discovery authentication, empty-profile rejection, successful mock discovery, summary isolation and freshness reuse despite an attempted `force:true`. The documented SAM 404 “No Data found” first-page response is distinguished from generic 404/provider failures.
 
 New regression coverage includes single/multiple/exactly-1,000 pages, totalRecords termination, dedupe across pages/NAICS/horizons, 30→90→180→365 expansion and each early stop, candidate/request/time caps, capability-only and unconfigured profiles, deadlines/types/blockers, retention, transient/4xx/429/malformed upstream behavior, explicit stale bounds, exact-query cache reuse across distinct local scoring profiles, tenant-isolated storage in SQLite/JSON, concurrent sync, profile change rejection and daily personalized discovery/outbox idempotency. Existing scoring/Change Watch tests remain unchanged.
 
@@ -32,16 +34,31 @@ Final safeguards additionally test invalid/unset quota values, concurrent shared
 
 All CI data is mocked; no live SAM request is made by tests. The small legacy `doctor:sam` connectivity probe remains explicitly operator-run and is not the runtime discovery path.
 
+Final trust regressions: real unchanged scorer with NAICS 115310 and unrelated hardware yields 45/35/30 with no business-profile signals; mixed 82/63/45 and exact 54/55/74/75 boundaries validate filtering, selection preservation and classification. Description tests cover 401/403, 404/410, 429, 5xx/network retries, malformed/missing/HTML/JSON responses, budget refusal, HTTP-date/seconds Retry-After, cross-notice cooldown, bounded valid stale cache, same-notice URL repair (including stale recovery), preserved evidence/history and missing tenant-owned notices. The old untrusted-URL test now asserts the controlled error code instead of an internal English error string.
+
+## Exact trust and enrichment behavior
+
+- Default Relevant shows >=55; Strong shows >=75; Explore shows only <55. Numeric scores have visible Strong / Relevant / Low relevance labels.
+- Successful zero-relevant discovery says “No relevant opportunities found right now.” and explains that evaluated records did not meet the relevance threshold. Review company profile and Explore lower-confidence results are available. This is not a provider failure or a claim SAM had no data.
+- Initial selection is the highest visible >=55 result only. Opening Explore selects nothing; the user explicitly opens a low-relevance card. Refresh preserves selection only while it remains visible. Favorable pursuit conditions are separated from business-profile signals; absent NAICS/capability evidence says “No strong business-profile match detected.”
+- Description failures return safe categories with controlled 404/502/503 responses; raw upstream bodies/URLs/keys are never returned or logged. Only transient/network failures retry (three total attempts, 500/1,000ms backoff, 10-second request timeout). 429 defers until Retry-After (seconds or HTTP-date, default one minute) with no immediate retry, including across other notices in the process.
+- Valid previously cached descriptions may be shown explicitly stale within the existing age limit. Budget refusal is never retried or converted into new stale success. Broken/not-found description links may trigger one forced same-notice metadata lookup and one replacement-link attempt; tenant evidence/workflow is not replaced by metadata. The official source link remains available, with safe SAM notice-ID fallback.
+- This hardens observed failure modes; the specific production 500 was not reproduced or diagnosed using production logs/credentials. No claim is made that its exact historical root cause is proven.
+
 ## Browser evidence (local disposable SQLite, Chrome headless)
 
 Widths: 360, 390, 430, 768, 980, 1024, 1100, 1440.
 
-- `scripts/qa-discovery-browser.js`: 72 state/width checks — unconfigured, NAICS, capabilities-only, populated, empty, provider error, stale cache, fresh reuse, budget unavailable. Zero horizontal page overflow or JavaScript errors. Last-searched text, preserved metrics, disabled budget-exhausted action, shell visibility/focus, 44px controls and inline error preservation checked. Real local mock HTTP repeat sync verifies reuse.
+- `scripts/qa-discovery-browser.js`: 104 state/width checks — the nine previous states plus Explore-only, Relevant-only, mixed quality, and description failures. All five enrichment error categories are exercised at every width. Zero horizontal page overflow or JavaScript errors. Score-label containment, explicit Explore/keyboard selection, default/Strong filtering, preserved visible selection on refresh, last-searched text, metrics, 44px controls and shell focus checked. Real local mock HTTP repeat sync verifies reuse.
 - `scripts/qa-polish-browser.js`: 64 responsive page checks + 32 profile checks. Keyboard Enter/Tab/Escape, focus return, outside-click close, mobile vs desktop shell, long account identity, vendor import/archive/capacity flows and authentication confirmations pass.
-- Final screenshots generated in the task's local `work/rc21-final-discovery-qa` and `work/rc21-final-shell-qa` directories (not production, not runtime assets). Representative mobile/desktop images were visually inspected. Four metrics form a complete 2×2 mobile grid.
+- Final screenshots generated in the task's local `work/rc21-trust-qa` and `work/rc21-trust-shell-qa` directories (not production, not runtime assets). Representative mobile/desktop images were visually inspected. Four metrics form a complete 2×2 mobile grid; score labels fit their badges with inherited high-contrast text.
 - Reproduce with externally installed Playwright via `PLAYWRIGHT_MODULE`, optional `RC21_QA_OUTPUT` / `RC20_QA_OUTPUT`. Neither script accepts a remote base URL.
 
 Browser fixtures validate rendering, not live SAM search quality or coverage completeness. Human Android/device review and an approved, quota-aware real SAM profile search remain post-review/operator checks. No production account or production data was used.
+
+### Required operator acceptance BEFORE production promotion
+
+Using an authorized real test profile such as NAICS **115310** (forestry support), run **one** live SAM discovery within the account's quota in the approved candidate environment. Inspect the first 20 default Relevant results (or all when fewer than 20) and confirm plausible forestry-support relevance. If none meet the threshold, confirm the no-relevant-results state rather than a promoted low-score item. Explicit Explore may contain broader records, but all must be labeled Low relevance and none auto-open. Record source notice IDs, time, summary and any implausible results for human review. Do not run this acceptance against live SAM from CI. This operator step remains pending; local/mock QA cannot establish real search quality.
 
 ## CI and release boundary
 

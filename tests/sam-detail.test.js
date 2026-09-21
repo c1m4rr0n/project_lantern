@@ -9,7 +9,7 @@ test('description URL is restricted to official SAM API hosts and receives key',
   const url=safeSamDescriptionUrl('https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=abc','secret');
   assert.equal(url.hostname,'api.sam.gov');
   assert.equal(url.searchParams.get('api_key'),'secret');
-  assert.throws(()=>safeSamDescriptionUrl('https://evil.example/x','secret'),/Untrusted/);
+  assert.throws(()=>safeSamDescriptionUrl('https://evil.example/x','secret'),{code:'enrichment_not_found'});
 });
 
 test('description fetch strips markup',async()=>{

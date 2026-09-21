@@ -68,4 +68,18 @@ Reviewing/Pursue opportunities are exempt from discovery caps and retain descrip
 
 ## Validation and promotion
 
+### Presentation trust boundary
+
+The default Relevant view contains scores >=55; Strong is >=75; Explore is <55 and explicitly not recommended. Every score has its band label. When a successful summary has zero relevant records, show “No relevant opportunities found right now.” with profile-review and Explore actions. Do not automatically open a lower-score record, even when it is the highest retained score. Opening Explore selects nothing until the user chooses a card; a refresh preserves a selected item only if still visible. Business-profile signals and favorable pursuit conditions are displayed separately. None of these presentation rules changes the scorer, discovery retention or legal/evidence semantics.
+
+### Official description failures
+
+The [official public API documentation](https://open.gsa.gov/api/get-opportunities-public-api/) describes a credentialed description link and “Description not found” when unavailable. RC21 classifies missing descriptions, malformed responses, authentication/configuration failures, rate limits and transient outages without exposing raw bodies or sensitive URLs. The known production 500 is an observed symptom, not a proven root cause; this branch uses mocked failures and no production credentials.
+
+Description fetches use at most three transient attempts, 500/1,000ms backoff and 10-second request timeouts. Permanent/auth/malformed failures do not retry. A 429 establishes a process-wide description-provider cooldown using Retry-After seconds or HTTP-date (one minute if absent/invalid), including forced actions and other notices. Every dispatched retry/metadata recovery remains charged by the shared SAM ledger; budget errors propagate without retries. Official HTTPS hosts only, no automatic description redirects. Existing valid cached descriptions may be returned within SAM_DETAIL_MAX_STALE_MS, explicitly labeled stale, not represented as current.
+
+A broken or missing description URL may be re-resolved once through forced same-notice metadata; only a matching notice ID and validated replacement URL are used. Failed repair preserves valid stale evidence, when available. Provider failures leave the rest of Pursuit Watch usable and offer Open official source. Safe logs contain category and upstream status only. No new environment setting or production change is required for this pass.
+
+Before production promotion, perform the manual NAICS 115310 / first-20-results acceptance in reports/RC21-VALIDATION.md; this is pending operator work, not a CI/live-provider test.
+
 All CI SAM responses are mocked. `npm run release:gate` covers discovery tests alongside all previous smokes; workstation-only `scripts/qa-discovery-browser.js` uses disposable localhost SQLite/mock providers. `PLAYWRIGHT_MODULE` may point to externally installed Playwright; it is not a runtime dependency. RC21 is a PR candidate only. No Railway/DNS/Stripe Live/SAM key changes are needed or performed. After an approved future promotion, an operator should validate readiness, source identity and one real profile/SAM search within their quota; local fixtures do not prove live account access or SAM availability.

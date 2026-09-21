@@ -395,8 +395,13 @@ async function handleRequest(req, res) {
         return item ? json(res, 200, item) : json(res, 404, { error:'not_found' });
       } catch (error) {
         if(error instanceof BillingGateError)return json(res,error.status,{error:error.code,message:error.message});
-        if (/not configured/i.test(error.message)) return json(res, 503, { error:'enrichment_unavailable' });
-        throw error;
+        if (['enrichment_rate_limited','enrichment_temporarily_unavailable','enrichment_not_found','enrichment_configuration','enrichment_malformed'].includes(error.code)) {
+          console.warn(JSON.stringify({event:'enrichment_unavailable',category:error.category,upstreamStatus:error.upstreamStatus ?? null}));
+          return json(res, error.status, {error:error.code, ...(error.retryAt ? {retryAt:error.retryAt} : {})});
+        }
+        if (String(error.code || '').startsWith('discovery_')) return json(res,503,{error:error.code});
+        console.warn(JSON.stringify({event:'enrichment_unavailable',category:'temporarily_unavailable',upstreamStatus:null}));
+        return json(res,503,{error:'enrichment_temporarily_unavailable'});
       }
     }
     const changesMatch = url.pathname.match(/^\/api\/opportunities\/([^/]+)\/changes$/);
