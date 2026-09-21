@@ -1,8 +1,13 @@
+import {enrichmentError, safeEnrichmentError} from '../providers/enrichment-error.js';
 import { createHash } from 'node:crypto';
 import { scoreOpportunity } from '../domain/scoring.js';
 import { extractRequirements } from '../domain/requirements.js';
 import { detectMaterialChanges, detectFitImpact } from '../domain/change-detection.js';
 import { detectRequirementDelta } from '../domain/requirement-delta.js';
+import {planDiscovery,profileFingerprint,discoveryError} from '../domain/discovery.js';
+import {isSamBudgetError} from '../ops/sam-request-budget.js';
+
+const syncing=new Map();
 
 function normalizeRequirementText(value='') { return String(value).trim().toLowerCase().replace(/\s+/g,' '); }
 function isMachineRequirement(item={}) {
@@ -100,12 +105,13 @@ function requirementOnlyEvent(opportunityId, delta, detectedAt) {
 }
 
 export class OpportunityService {
-  constructor({ store, provider, detailProvider = null, watchProvider = null, excludeDemoSeed = false }) {
+  constructor({ store, provider, detailProvider = null, watchProvider = null, excludeDemoSeed = false, now=Date.now }) {
     this.store = store;
     this.provider = provider;
     this.detailProvider = detailProvider;
     this.watchProvider = watchProvider;
     this.excludeDemoSeed = Boolean(excludeDemoSeed);
+    this.now=now;
   }
   async list() {
     const [profile, items, decisions, changes] = await Promise.all([
@@ -156,6 +162,7 @@ export class OpportunityService {
       if(event) event={...event,requirementAnalysis:{status:'ok',cache:detail.cache,fetchedAt:detail.fetchedAt}};
       return { item, event, checked:true, requirementChanged:Boolean(delta?.changed) };
     } catch(error) {
+      if(isSamBudgetError(error))throw error;
       const event=metadataEvent ? {...metadataEvent,requirementAnalysis:{status:'error',error:String(error.message || error).slice(0,300)}} : null;
       return { item:current, event, checked:true, requirementChanged:false, error:String(error.message || error) };
     }
@@ -169,18 +176,56 @@ export class OpportunityService {
     return {...refreshed,event};
   }
 
-  async sync() {
+  async sync({source='manual'}={}) {
+    const key=this.store.dir || (this.store.db ? this.store.db : this.store);
+    let tenants=syncing.get(key);if(!tenants){tenants=new Map();syncing.set(key,tenants);}
+    const tenant=this.store.tenantId||'local';
+    if(tenants.has(tenant))return tenants.get(tenant);
+    const work=()=>this.#sync({source}).catch(async error=>{
+      if(isSamBudgetError(error)){error.retryAt ||= new Date(this.now()+60000).toISOString();const saved=await this.store.getDiscovery?.();await this.store.saveDiscovery?.({...saved,refreshUnavailable:{code:error.code,retryAt:error.retryAt}});}
+      throw error;
+    });
+    const promise=this.provider.withRequestContext?this.provider.withRequestContext({source},work):work();tenants.set(tenant,promise);
+    try{return await promise;}finally{tenants.delete(tenant);if(!tenants.size)syncing.delete(key);}
+  }
+  async discoveryStatus() {
+    const profile=await this.store.getProfile(),plan=planDiscovery(profile);
+    const saved=await this.store.getDiscovery?.();
+    const {fresh,freshUntil}=this.#freshness(saved,profile);
+    let unavailable=!fresh&&saved?.refreshUnavailable&&(saved.refreshUnavailable.retryAt===null||Date.parse(saved.refreshUnavailable.retryAt)>this.now())?saved.refreshUnavailable:null;
+    if(this.provider.budget)try{
+      const budget=await this.provider.budget.status();
+      if(!fresh&&budget.limit!==null&&budget.unreserved===0)unavailable=budget.remaining===0?{code:'discovery_global_budget_exhausted',retryAt:budget.resetAt}:{code:'discovery_budget_reserved',retryAt:new Date(this.now()+60000).toISOString()};
+    }catch(error){if(!isSamBudgetError(error))throw error;unavailable={code:error.code,retryAt:null};}
+    return {configured:plan.configured,mode:plan.mode,summary:saved?.summary||null,profileChanged:Boolean(saved?.summary&&saved.profileFingerprint!==profileFingerprint(profile)),fresh,freshUntil,refreshUnavailable:unavailable};
+  }
+  #freshness(saved,profile){
+    const searched=Date.parse(saved?.summary?.syncedAt),ttl=this.provider.freshnessMs||0;
+    const fresh=ttl>0&&saved?.profileFingerprint===profileFingerprint(profile)&&this.now()>=searched&&this.now()<searched+ttl;
+    return {fresh:Boolean(fresh),freshUntil:Number.isFinite(searched)&&ttl>0?new Date(searched+ttl).toISOString():null};
+  }
+  async #sync({source}) {
     const syncedAt = new Date().toISOString();
-    const [incoming, existing, decisions, profile] = await Promise.all([
-      this.provider(),
+    const profile=await this.store.getProfile();
+    if(!planDiscovery(profile).configured)throw discoveryError('discovery_profile_required',409);
+    const saved=await this.store.getDiscovery?.();
+    if(source==='manual'&&this.#freshness(saved,profile).fresh)return {count:(await this.store.getOpportunities()).length,syncedAt:saved.summary.syncedAt,discovery:saved.summary,reused:true};
+    if(this.provider.budget){const budget=await this.provider.budget.status();if(budget.limit!==null&&budget.remaining===0){const error=discoveryError('discovery_global_budget_exhausted');error.retryAt=budget.resetAt;throw error;}}
+    if(saved?.refreshUnavailable&&(saved.refreshUnavailable.retryAt===null||Date.parse(saved.refreshUnavailable.retryAt)>this.now())){
+      const error=discoveryError(saved.refreshUnavailable.code);error.retryAt=saved.refreshUnavailable.retryAt;throw error;
+    }
+    const discovery=this.provider.discover?await this.provider.discover(profile):null;
+    const incoming=discovery?discovery.items:await this.provider(profile);
+    if(profileFingerprint(profile)!==profileFingerprint(await this.store.getProfile()))throw discoveryError('discovery_profile_changed',409);
+    const [existing, decisions] = await Promise.all([
       this.store.getOpportunities(),
-      this.store.getDecisions ? this.store.getDecisions() : {},
-      this.store.getProfile()
+      this.store.getDecisions ? this.store.getDecisions() : {}
     ]);
     const cleanExisting = this.excludeDemoSeed ? existing.filter(item => !isDemoSeedOpportunity(item)) : existing;
     const byId = new Map(cleanExisting.map(item => [String(item.id), item]));
     const seen = new Set();
     const items = [];
+    const pendingChanges=[];
     let materialChanges = 0;
     let requirementChanges = 0;
     let requirementChecks = 0;
@@ -189,6 +234,7 @@ export class OpportunityService {
 
     for (const item of incoming) {
       const id=String(item.id);
+      if(seen.has(id))continue;
       seen.add(id);
       const prior=byId.get(id);
       const decision=decisions[id] || {status:'new'};
@@ -198,7 +244,7 @@ export class OpportunityService {
         current=result.item;
         if(result.checked) requirementChecks++;
         if(result.requirementChanged) requirementChanges++;
-        if(result.event){ await this.store.appendOpportunityChange(id,result.event); materialChanges++; }
+        if(result.event){ pendingChanges.push([id,result.event]); materialChanges++; }
       }
       items.push(current);
     }
@@ -218,6 +264,7 @@ export class OpportunityService {
           refreshed=result?.item || null;
           watchMeta={cache:result?.cache || 'unknown',fetchedAt:result?.fetchedAt || null,stale:result?.cache==='stale-fallback'};
         } catch (error) {
+          if(isSamBudgetError(error))throw error;
           watchMeta={error:String(error.message || error).slice(0,300)};
         }
       }
@@ -228,7 +275,7 @@ export class OpportunityService {
           current=result.item;
           if(result.checked) requirementChecks++;
           if(result.requirementChanged) requirementChanges++;
-          if(result.event){ await this.store.appendOpportunityChange(id,result.event); materialChanges++; }
+          if(result.event){ pendingChanges.push([id,result.event]); materialChanges++; }
         }
         items.push(current);
       } else {
@@ -236,21 +283,49 @@ export class OpportunityService {
       }
     }
 
+    // Decisions may change while remote detail requests are in flight. Never prune a newly tracked record.
+    const latestDecisions=await this.store.getDecisions?.()||decisions;
+    const retainedIds=new Set(items.map(x=>String(x.id)));
+    for(const prior of await this.store.getOpportunities())if(!retainedIds.has(String(prior.id))&&tracked(latestDecisions[prior.id]))items.push({...prior,feedStatus:'tracked-retained'});
+    for(const [id,event] of pendingChanges)await this.store.appendOpportunityChange(id,event);
     await this.store.saveOpportunities(items);
-    return { count:items.length, syncedAt, materialChanges, requirementChanges, requirementChecks, watchRefreshes, trackedRetained };
+    if(discovery){discovery.summary.retained=items.length;discovery.summary.syncedAt=new Date(this.now()).toISOString();await this.store.saveDiscovery?.({summary:discovery.summary,profileFingerprint:profileFingerprint(profile)});}
+    return { count:items.length, syncedAt, materialChanges, requirementChanges, requirementChecks, watchRefreshes, trackedRetained, ...(discovery?{discovery:discovery.summary}:{}) };
   }
   async enrich(id) {
-    const current = await this.store.findOpportunity(id);
+    let current = await this.store.findOpportunity(id);
     if (!current) return null;
-    if (!current.descriptionUrl) {
+    if (!current.descriptionUrl && current.description) {
       const extracted = current.description ? extractRequirements(current.description, { source:`SAM.gov description · ${current.id}` }) : [];
       const requirements = reconcileRequirements(current.requirements || [], extracted);
       const saved = { ...current, requirements, requirementSnapshot:extracted, requirementCheckedAt:new Date().toISOString(), enrichedAt:new Date().toISOString(), enrichment:{ source:'embedded-description', cache:'n/a' } };
       await this.store.replaceOpportunity(saved);
       return this.get(id);
     }
-    if (!this.detailProvider) throw new Error('opportunity enrichment is not configured');
-    const detail = await this.detailProvider.get({ id:current.id, descriptionUrl:current.descriptionUrl, forceRefresh:true });
+    if (!this.detailProvider) throw enrichmentError('configuration');
+    let detail, staleDetail;
+    const fetchDetail = () => this.detailProvider.get({ id:current.id, descriptionUrl:current.descriptionUrl });
+    try {
+      detail = await fetchDetail();
+      if (detail.cache === 'stale-fallback' && detail.upstreamError === 'enrichment_not_found' && this.watchProvider) { staleDetail = detail; throw enrichmentError('not_found', detail.upstreamStatus); }
+    }
+    catch (error) {
+      if (isSamBudgetError(error)) throw error;
+      const safe = safeEnrichmentError(error);
+      if (safe.category !== 'not_found' || !this.watchProvider) throw safe;
+      // Refresh only this public notice's description URL, never overwrite tenant evidence/workflow.
+      try {
+        const metadata = await this.watchProvider.get({id:current.id, postedDate:current.postedDate, forceRefresh:true});
+        const fresh = metadata?.item;
+        if (metadata?.cache === 'stale-fallback' || fresh?.id !== current.id || !fresh.descriptionUrl || fresh.descriptionUrl === current.descriptionUrl) throw safe;
+        detail = await this.detailProvider.get({id:current.id,descriptionUrl:fresh.descriptionUrl,forceRefresh:true});
+        if (detail.cache !== 'stale-fallback') current = {...current, descriptionUrl:fresh.descriptionUrl};
+      } catch (refreshError) {
+        if (isSamBudgetError(refreshError)) throw refreshError;
+        if (staleDetail) detail = staleDetail;
+        else throw safeEnrichmentError(refreshError);
+      }
+    }
     const extracted=extractRequirements(detail.description, { source:`SAM.gov description · ${current.id}` });
     const requirements = reconcileRequirements(current.requirements || [], extracted);
     const now=new Date().toISOString();

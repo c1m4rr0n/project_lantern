@@ -1,6 +1,8 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import {responseError, enrichmentError} from './enrichment-error.js';
 import { normalizeSamOpportunity } from './sam.js';
+import {isSamBudgetError} from '../ops/sam-request-budget.js';
 
 const SAFE_ID = /^[a-zA-Z0-9._-]{1,160}$/;
 
@@ -41,12 +43,11 @@ export function buildSamNoticeSearchUrl({ apiKey, noticeId, postedDate = null, n
 
 export async function fetchSamOpportunityById({ apiKey, noticeId, postedDate = null, now = new Date(), fetchImpl = fetch }) {
   const url = buildSamNoticeSearchUrl({ apiKey, noticeId, postedDate, now });
-  const response = await fetchImpl(url, { headers:{ 'user-agent':'ExcluSignal/1.0 change-watch' } });
+  const response = await fetchImpl(url, { redirect:'error', signal:AbortSignal.timeout(10_000), headers:{ 'user-agent':'ExcluSignal/1.0 change-watch' } });
   if (!response.ok) {
-    const body = (await response.text()).slice(0, 300);
-    throw new Error(`SAM.gov watch request failed: ${response.status}${body ? ` ${body}` : ''}`);
+    throw responseError(response);
   }
-  const data = await response.json();
+  let data; try { data = await response.json(); } catch { throw enrichmentError('malformed', response.status); }
   const row = Array.isArray(data.opportunitiesData) ? data.opportunitiesData[0] : null;
   return row ? normalizeSamOpportunity(row) : null;
 }
@@ -66,12 +67,12 @@ export class SamWatchCache {
   constructor({ root, apiKey, ttlMs = 30 * 60_000, maxStaleMs = 7 * 24 * 60 * 60_000, now = () => Date.now(), fetchImpl = fetch }) {
     this.root=root; this.apiKey=apiKey; this.ttlMs=ttlMs; this.maxStaleMs=maxStaleMs; this.now=now; this.fetchImpl=fetchImpl; this.inflight=new Map();
   }
-  async get({ id, postedDate = null }) {
+  async get({ id, postedDate = null, forceRefresh = false }) {
     if (!SAFE_ID.test(String(id))) throw new Error('invalid opportunity id');
     const path=join(this.root, `${id}.json`);
     const cached=await readCache(path);
     const age=cached?.fetchedAt ? this.now()-Date.parse(cached.fetchedAt) : Infinity;
-    if (cached && age >= 0 && age <= this.ttlMs) return { ...cached, cache:'hit' };
+    if (!forceRefresh && cached && age >= 0 && age <= this.ttlMs) return { ...cached, cache:'hit' };
     if (this.inflight.has(id)) return this.inflight.get(id);
     const task=(async()=>{
       try {
@@ -80,6 +81,7 @@ export class SamWatchCache {
         await writeCache(path,result);
         return {...result,cache:cached?'refresh':'miss'};
       } catch(error) {
+        if(isSamBudgetError(error))throw error;
         if(cached && age <= this.maxStaleMs) return {...cached,cache:'stale-fallback',upstreamError:error.message};
         throw error;
       } finally { this.inflight.delete(id); }

@@ -220,6 +220,8 @@ export class SqliteTenantStore {
   async saveProfile(profile) { return this.#put('profile', profile); }
   async getOpportunities() { return this.#get('opportunities', this.seedOpportunities); }
   async saveOpportunities(items) { return this.#put('opportunities', items); }
+  async getDiscovery() { return this.#get('discovery', null); }
+  async saveDiscovery(value) { return this.#put('discovery', value); }
   async findOpportunity(id) { return (await this.getOpportunities()).find(x => String(x.id) === String(id)) || null; }
   async replaceOpportunity(item) {
     const items = await this.getOpportunities();

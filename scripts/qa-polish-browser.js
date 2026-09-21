@@ -89,14 +89,16 @@ try{
       else{await page.locator('#accountToggle').click();assert.ok(await page.locator('#accountMenu').isVisible());await page.keyboard.press('Escape');}
       await page.screenshot({path:join(output,`${width}-${path.split('?')[0].slice(1)}.png`),fullPage:true});
       if(path==='/app.html'){
-        const cases=[['empty',{},'Company profile not configured.'],['capabilities',{capabilities:['cloud','security']},'Matching your capabilities: cloud · security'],['name',{name:'Example LLC'},'Matching for Example LLC'],['complete',{name:'Example Federal Services with a longer company name',capabilities:['cloud','security']},'Matching for Example Federal Services with a longer company name: cloud · security']];
+        const cases=[['empty',{},'Set up your company profile to discover relevant federal opportunities.'],['capabilities',{capabilities:['cloud','security']},'Matching your capabilities: cloud · security'],['name',{name:'Example LLC'},'Set up your company profile to discover relevant federal opportunities.'],['complete',{name:'Example Federal Services with a longer company name',naics:['541512'],capabilities:['cloud','security']},'Matching for Example Federal Services with a longer company name: cloud · security']];
         for(const [label,profile,expected]of cases){
+          const configured=Boolean(profile.naics?.length||profile.capabilities?.length),mode=profile.naics?.length?'naics':configured?'capabilities':'unconfigured';
+          await page.route('**/api/discovery',route=>route.fulfill({json:{configured,mode,summary:null}}));
           await page.route('**/api/profile',route=>route.fulfill({json:profile}));await page.goto(base+'/app.html');await page.waitForFunction(text=>document.querySelector('#profileLine')?.textContent.startsWith(text),expected);
-          assert.equal(await page.locator('#profileLine').innerText(),expected+(label==='empty'?' Set up profile →':''));
+          assert.equal(await page.locator('#profileLine').innerText(),expected+(!configured?' Set up profile →':mode==='capabilities'?' Add NAICS for better discovery →':''));
           if(label==='empty')assert.equal(await page.locator('#profileLine a').getAttribute('href'),'/onboarding.html');
           assert.equal(await page.locator('.pursuitHeading #sync').count(),1);const sync=await page.locator('#sync').boundingBox();assert.ok(sync.height>=44&&sync.width<230);
           assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));profileChecks.push({width,profile:label});
-          await page.screenshot({path:join(output,`${width}-pursuit-${label}.png`)});await page.unroute('**/api/profile');
+          await page.screenshot({path:join(output,`${width}-pursuit-${label}.png`)});await page.unroute('**/api/profile');await page.unroute('**/api/discovery');
         }
       }
     }

@@ -1,10 +1,11 @@
 {
   "name": "project-lantern",
-  "version": "1.0.0-rc.20",
+  "version": "1.0.0-rc.21",
   "private": true,
   "type": "module",
   "description": "ExcluSignal: federal vendor exclusion monitoring with auditable evidence and procurement intelligence.",
   "scripts": {
+    "sam:usage": "node --env-file-if-exists=.env scripts/sam-usage.js",
     "analytics:summary": "node --env-file-if-exists=.env scripts/analytics-summary.js",
     "doctor:stripe": "node --env-file-if-exists=.env scripts/doctor-stripe.js",
     "start": "node --env-file-if-exists=.env server.js",

@@ -80,3 +80,9 @@ Scale is the public name for the existing team billing key and 500-vendor entitl
 ## D20 — Account erasure fails closed
 
 Require password plus explicit confirmation, reconcile ended billing before erasure, drain in-process work and persist restart recovery. Keep minimal opaque deletion receipts until relevant backups expire. Incomplete cleanup requires repair/restart, never silent partial success. Legal retention and public policy approval remain human decisions.
+
+## D21 — Personalized discovery, public query cache
+
+Company criteria drive bounded deterministic SAM searches, never a generic empty-profile crawl. NAICS takes priority; capabilities use a small title-query fallback. Raw page caches are shared only by exact public query identity; tenant profiles/scores/results and discovery summaries are tenant-local. Local scoring determines quality stops; request/candidate/time caps always bound search. Success replaces only untracked discovery candidates according to explicit retention limits. Reviewing/Pursue evidence and per-notice Change Watch are preserved. Provider errors cannot become empty successful feeds. See docs/OPPORTUNITY_DISCOVERY.md; this does not change billing entitlements or exclusion matching.
+
+The shared SAM credential has process-wide persisted request accounting and an optional operator-selected UTC daily limit, never an assumed provider quota. Scheduled work reserves fair tenant shares; cached reads are free and budget refusal preserves the successful feed/summary/history. Manual searches reuse fresh profile-identical results without a force-refresh escape hatch. Capabilities produce normalized meaningful phrases rather than broad generic tokens. External consumers of the same account are outside this application's accounting; retain the one-writer topology and operator quota headroom.

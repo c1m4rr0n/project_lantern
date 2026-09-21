@@ -4,10 +4,12 @@ import { buildDigest } from '../services/digest.js';
 import { buildVendorDigest } from '../services/vendor-digest.js';
 import { OpportunityService } from '../services/opportunities.js';
 import { VendorWatchService } from '../services/vendors.js';
+import {planDiscovery} from '../domain/discovery.js';
+import {isSamBudgetError} from './sam-request-budget.js';
 
 function dayKey(now) { return now.toISOString().slice(0,10); }
 function configured(profile) {
-  return Boolean(profile?.name || profile?.naics?.length || profile?.capabilities?.length || profile?.setAsides?.length || profile?.regions?.length);
+  return planDiscovery(profile).configured;
 }
 async function writeOnce(path, value) {
   try { await writeFile(path, JSON.stringify(value, null, 2), { flag:'wx', mode:0o600 }); return true; }
@@ -36,15 +38,26 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
 
   const opportunityEligible=eligible.filter(x=>x.opportunityReady);
   const vendorEligible=eligible.filter(x=>x.vendorReady);
-  const sharedItems = opportunityEligible.length ? await provider() : [];
-  const exclusionSnapshot = vendorEligible.length && exclusionProvider ? await exclusionProvider.getSnapshot() : null;
+  const sharedItems = opportunityEligible.length && !provider.discover ? await provider() : [];
+  let opportunitiesFetched=sharedItems.length;
+  const getSnapshot=()=>exclusionProvider.getSnapshot();
+  const exclusionSnapshot = vendorEligible.length && exclusionProvider ? await (provider.withRequestContext?provider.withRequestContext({source:'scheduler'},getSnapshot):getSnapshot()) : null;
   await mkdir(outboxRoot, { recursive:true });
+  const grants=provider.budget?await provider.budget.reserveScheduled(opportunityEligible.map(x=>x.user.tenantId)):new Map();
 
+  try {
   for (const {user,store,profile,opportunityReady,vendorReady} of eligible) {
     let items=[];
+    let discoveryUnavailable=null;
     if(opportunityReady){
-      const service = new OpportunityService({ store, provider:async()=>sharedItems, watchProvider, detailProvider, excludeDemoSeed:providerName !== 'mock' });
-      await service.sync();
+      const service = new OpportunityService({ store, provider:provider.discover?provider:async()=>sharedItems, watchProvider, detailProvider, excludeDemoSeed:providerName !== 'mock' });
+      const lease=grants.get(user.tenantId);
+      try{
+        const run=()=>service.sync({source:'scheduler'});
+        const sync=provider.withRequestContext?await provider.withRequestContext({source:'scheduler',lease},run):await run();
+        if(provider.discover)opportunitiesFetched+=sync.count;
+      }catch(error){if(!isSamBudgetError(error))throw error;discoveryUnavailable={code:error.code,retryAt:error.retryAt||null};}
+      finally{await provider.budget?.release(lease);}
       items = await service.list();
     }
     let vendorDigest=buildVendorDigest((await store.getVendors?.()||[]).filter(v=>!v.archivedAt));
@@ -67,8 +80,9 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
     };
     const path = join(outboxRoot, `${dayKey(now)}-${user.tenantId}.json`);
     const created = await writeOnce(path, message);
-    results.push({ tenantId:user.tenantId, status:created ? 'queued' : 'already-queued', strongCount:digest.strongCount, deadlineCount:digest.deadlineCount, changedCount:digest.changedCount || 0, vendorCount:vendorDigest.total, vendorAlerts:vendorDigest.alertCount, vendorsScreened:vendorScreening?.screened||0 });
+    results.push({ tenantId:user.tenantId, status:created ? 'queued' : 'already-queued', discoveryUnavailable, strongCount:digest.strongCount, deadlineCount:digest.deadlineCount, changedCount:digest.changedCount || 0, vendorCount:vendorDigest.total, vendorAlerts:vendorDigest.alertCount, vendorsScreened:vendorScreening?.screened||0 });
   }
+  }finally{for(const lease of grants.values())await provider.budget?.release(lease);}
 
   return {
     ok:true,
@@ -79,7 +93,7 @@ export async function runDaily({ accountStore, tenantStoreFor, provider, watchPr
     eligibleTenants:eligible.length,
     opportunityEligibleTenants:opportunityEligible.length,
     vendorEligibleTenants:vendorEligible.length,
-    opportunitiesFetched:sharedItems.length,
+    opportunitiesFetched,
     exclusionsSnapshotFetched:Boolean(exclusionSnapshot),
     queued:results.filter(x=>x.status==='queued').length,
     alreadyQueued:results.filter(x=>x.status==='already-queued').length,

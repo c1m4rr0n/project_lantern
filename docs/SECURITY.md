@@ -1,6 +1,6 @@
-# Security baseline — source RC20
+# Security baseline — source RC21 candidate
 
-Production runs RC19 from GitHub source; RC20 is a not-yet-deployed presentation/entry-flow candidate. See CURRENT_DEPLOYMENT.md.
+The operator reports RC20 production from GitHub source; RC21 remains a separate, unmerged candidate. See CURRENT_DEPLOYMENT.md.
 
 ## Implemented controls
 
@@ -23,9 +23,13 @@ Production runs RC19 from GitHub source; RC20 is a not-yet-deployed presentation
 
 ## RC20 presentation boundary
 
+RC21 adds a shared, serialized SAM request ledger with optional operator budget, persisted UTC usage and fair scheduled reservations. Counters contain no profiles/credentials; public/tenant endpoints do not expose aggregate customer usage. Budget denial preserves the successful feed/summary and prevents retry storms. The ledger assumes the existing single writable process/data root, not distributed enforcement across external apps. Manual sync reuses fresh profile-identical results (including tracked refresh) and ignores user-supplied force-refresh fields. See OPPORTUNITY_DISCOVERY.md for limits, failure handling and accounting boundaries.
+
 Verified sessions entering `/` or `/auth.html` without verify/reset parameters are redirected to Vendor Watch. Token flows and unauthenticated entry remain available. Password confirmation is a client convenience; server validation, generic recovery responses, password reauthentication, DELETE confirmation and entitlements remain authoritative. Human error copy is allowlisted and never includes unknown raw diagnostics. Shared dialogs use native modal focus containment and explicit confirmation. Report evidence remains escaped, and no-match results are not eligibility determinations.
 
 ## Retention and residual boundaries
+
+RC21 discovery requires an authenticated, active tenant and usable Company criteria before SAM access. Every discovery is bounded by page/request/raw-record/time budgets. Public raw page caching is keyed by the exact public query (no credentials); personalized scores and summaries stay in tenant storage. `GET /api/discovery` cannot select another tenant. Structured logs contain only counters/status/timing, not profiles or response bodies. Provider failure preserves prior discovery. Retention prunes old untracked discovery only; tracked evidence/history limits remain unchanged. See OPPORTUNITY_DISCOVERY.md for cache freshness, retries and explicit retention rules.
 
 Audit retention defaults to 90 days (AUDIT_RETENTION_DAYS) and detailed analytics to 90 days (ANALYTICS_RETENTION_DAYS), pruned on new events. Analytics milestone timestamps persist until account deletion. Screening history retains 730 entries per vendor; opportunity changes retain 50 per opportunity. These are engineering limits, not approved legal policies.
 

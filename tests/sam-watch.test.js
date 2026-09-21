@@ -35,3 +35,12 @@ test('SAM watch cache deduplicates repeated checks inside TTL',async()=>{
     assert.equal(b.cache,'hit');
   } finally { await rm(root,{recursive:true,force:true}); }
 });
+
+test('same-notice URL repair can explicitly bypass fresh metadata without losing ordinary cache reuse',async()=>{
+  const root=await mkdtemp(join(tmpdir(),'lantern-watch-repair-'));let calls=0;
+  try{
+    const cache=new SamWatchCache({root,apiKey:'test-only',fetchImpl:async()=>new Response(JSON.stringify({opportunitiesData:[{noticeId:'n1',description:'https://api.sam.gov/desc/'+(++calls)}]}))});
+    const first=await cache.get({id:'n1'});assert.equal((await cache.get({id:'n1'})).cache,'hit');
+    const repaired=await cache.get({id:'n1',forceRefresh:true});assert.notEqual(first.item.descriptionUrl,repaired.item.descriptionUrl);assert.equal(calls,2);
+  }finally{await rm(root,{recursive:true,force:true});}
+});

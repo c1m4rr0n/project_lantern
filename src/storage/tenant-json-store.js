@@ -35,6 +35,8 @@ export class TenantJsonStore {
   async saveProfile(profile) { await atomicJson(this.profilePath, profile); return profile; }
   async getOpportunities() { return readJson(this.opportunitiesPath, this.seedOpportunities); }
   async saveOpportunities(items) { await atomicJson(this.opportunitiesPath, items); return items; }
+  async getDiscovery() { return readJson(join(this.dir,'discovery.json'), null); }
+  async saveDiscovery(value) { await atomicJson(join(this.dir,'discovery.json'), value); return value; }
   async findOpportunity(id) { return (await this.getOpportunities()).find(x => String(x.id) === String(id)) || null; }
   async replaceOpportunity(item) {
     const items = await this.getOpportunities();

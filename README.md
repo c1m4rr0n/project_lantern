@@ -4,11 +4,15 @@ Vendor Exclusion Watch is the primary product: monitor vendor/subcontractor iden
 
 ## Current state
 
-Source version is in `release.json`, checked against `package.json` by the release gate. Production runs RC19 directly from GitHub main on Railway, operator-confirmed at `2c09f7df4601048dd602e77e486e85dd27943d5d`; see CURRENT_DEPLOYMENT.md. Historical tarballs remain available for provenance. Pipeline hardening does not activate Stripe Live or enable indexing.
+Source version is in `release.json`, checked against `package.json` by the release gate. The operator reports RC20 production/main at `afdff08fa87012fb2d35167bc9a06d7b6355021e`, deployed directly from GitHub source to Railway; see CURRENT_DEPLOYMENT.md. Historical tarballs remain available for provenance. RC21 is a separate PR candidate, not deployed. No Stripe Live or indexing activation.
 
 RC17: direct-source Docker readiness, release identity, CI, structured operational errors, durable audit and optional S3-compatible backup.
 RC18: confirmed CSV import, non-destructive vendor archive/restore, CSV and print-friendly evidence reports, optional support contact.
-RC20 (candidate, not deployed): shared responsive workspace navigation, secure-access form polish, contextual capacity, live watchlist updates, CSV review, settings and print evidence. [Copy audit](docs/RC20_POLISH_AUDIT.md) and [validation](reports/RC20-VALIDATION.md).
+RC20: shared responsive workspace navigation, secure-access form polish, contextual capacity, live watchlist updates, CSV review, settings and print evidence. [Copy audit](docs/RC20_POLISH_AUDIT.md) and [validation](reports/RC20-VALIDATION.md).
+
+RC21 (candidate): [profile-aware opportunity discovery](docs/OPPORTUNITY_DISCOVERY.md), real SAM pagination, adaptive coverage, bounded exact-query caching/retention and tenant-specific discovery metrics. Default caps: 500 records/page, 5,000 raw records, 20 HTTP attempts; 30 → 90 → 180 → 365 days with local-score early stopping. Empty profiles must be configured before discovery. Existing tracked pursuits retain per-notice Change Watch. [Validation](reports/RC21-VALIDATION.md).
+
+RC21 final safeguards: optional `SAM_DAILY_REQUEST_BUDGET` accounts for runtime SAM calls across tenants/retries/tracked refresh with persisted UTC usage and fair scheduled grants; unset means no daily allowance is claimed. `DISCOVERY_FRESHNESS_MS` protects recent manual searches from repeated calls; last-searched time is visible. Capability fallback uses at most three meaningful normalized phrases, never generic `IT services`. Operator usage report: `npm run sam:usage` (no network). No production setting was changed.
 
 RC19: Scale naming, private first-party analytics, password-confirmed account export/deletion, subscription lifecycle/reconciliation coverage and draft launch/legal materials.
 
